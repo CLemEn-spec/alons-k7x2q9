@@ -1,0 +1,1758 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<style>body{margin:0}</style>
+<title>Jalons de campagne BDE</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Concept : un tableau de départs. Une frise verticale où chaque échéance porte sa date en grands chiffres condensés,
+   un tableau de suivi partagé où chacun coche ses tâches, un espace perso et un onglet Équipe pour attribuer les rôles.
+   Aucun violet : c’est la couleur des Laya. */
+:root{
+  --paper:#F3F4F8;
+  --card:#FFFFFF;
+  --ink:#10141D;
+  --muted:#586174;
+  --line:#D9DDE7;
+  --soft:#E8EBF3;
+  --accent:#C8184F;
+  --accent-soft:#FBE2EA;
+  --on-accent:#FFFFFF;
+  --ok:#1B7A58;
+  --ok-soft:#DDF2E9;
+  --display:'Barlow Condensed','Arial Narrow',Impact,sans-serif;
+  --body:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0D1017; --card:#151A24; --ink:#E8EBF3; --muted:#9AA4B9; --line:#283144; --soft:#1C2230;
+    --accent:#FF6B98; --accent-soft:#3A1726; --on-accent:#14080D; --ok:#4FD1A0; --ok-soft:#12332A; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0D1017; --card:#151A24; --ink:#E8EBF3; --muted:#9AA4B9; --line:#283144; --soft:#1C2230;
+  --accent:#FF6B98; --accent-soft:#3A1726; --on-accent:#14080D; --ok:#4FD1A0; --ok-soft:#12332A; color-scheme:dark;
+}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.55}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+[hidden]{display:none!important}
+
+.wrap{max-width:1240px;margin-inline:auto;padding-inline:clamp(16px,4vw,32px);padding-block:28px 56px}
+.top{display:flex;flex-wrap:wrap;gap:8px 24px;align-items:baseline;justify-content:space-between;border-bottom:2px solid var(--ink);padding-bottom:14px}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(2.4rem,6vw,3.8rem);line-height:.95;letter-spacing:.01em;text-transform:uppercase;margin:0;text-wrap:balance}
+.top p{margin:0;color:var(--muted);max-width:44ch}
+
+.tabs{display:flex;gap:2px;margin-top:14px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tabs button{border:0;background:none;padding:10px 16px 8px;font-family:var(--display);font-weight:700;font-size:1.2rem;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tabs button:hover{color:var(--ink)}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.tabs .n{font-family:var(--mono);font-size:.7rem;color:var(--accent);margin-left:6px;vertical-align:middle}
+
+.layout{display:grid;grid-template-columns:240px minmax(0,1fr);gap:clamp(20px,3vw,40px);margin-top:22px}
+aside{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);align-self:start;display:flex;flex-direction:column;gap:22px;min-width:0}
+main{min-width:0}
+.lbl{font-family:var(--mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+.jbox{display:flex;flex-direction:column;gap:8px}
+input[type=text],input[type=date],input[type=number],select,textarea{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--card)}
+textarea{resize:vertical;min-height:5.5rem;line-height:1.45}
+.jbox small{color:var(--muted);line-height:1.4}
+.countdown{font-family:var(--display);font-size:1.6rem;font-weight:600;line-height:1;margin:2px 0 0}
+.countdown span{color:var(--accent)}
+.legend{font-size:.82rem;color:var(--muted);display:flex;flex-direction:column;gap:6px;line-height:1.4}
+.legend p{margin:0}
+
+.tag{display:inline-block;font-family:var(--mono);font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:3px;border:1px solid var(--ink);line-height:1.5;white-space:nowrap}
+.tag.guide{background:var(--ink);color:var(--paper)}
+.tag.propose{border-style:dashed;color:var(--muted);border-color:var(--muted)}
+.tag.page{border-style:solid;color:var(--muted);border-color:var(--muted)}
+.tag.crit{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.tag.next{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+.tag.add{background:var(--ok-soft);border-color:var(--ok);color:var(--ok)}
+
+.btn{border:1px solid var(--ink);background:transparent;border-radius:6px;padding:6px 12px;cursor:pointer;font-weight:500;line-height:1.3}
+.btn:hover{background:var(--ink);color:var(--paper)}
+.btn.ok{background:var(--ok);border-color:var(--ok);color:#fff}
+.btn.ok:hover{opacity:.85;background:var(--ok);color:#fff}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.primary:hover{opacity:.9;background:var(--accent);color:var(--on-accent)}
+.btn.danger{border-color:var(--accent);color:var(--accent)}
+.btn.danger:hover{background:var(--accent);color:var(--on-accent)}
+.btn.sm{padding:3px 9px;font-size:.84rem}
+.btn[disabled]{opacity:.45;cursor:not-allowed}
+
+#banner:not(:empty){margin-top:16px;display:flex;flex-direction:column;gap:10px}
+.banner{margin:0;padding:12px 16px;border:1px solid var(--accent);background:var(--accent-soft);border-radius:8px;display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:space-between}
+.banner p{margin:0;max-width:70ch}
+
+.intro{display:grid;gap:18px;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);margin-bottom:8px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px 18px;min-width:0}
+.panel h2{font-family:var(--display);font-size:1.25rem;text-transform:uppercase;letter-spacing:.03em;margin:0 0 8px;font-weight:700}
+.panel h3{font-family:var(--display);font-size:1.1rem;text-transform:uppercase;letter-spacing:.03em;margin:0 0 6px;font-weight:700}
+.panel p{margin:0 0 8px}
+.panel ul{margin:0;padding-left:1.1rem;display:flex;flex-direction:column;gap:6px}
+.panel li{line-height:1.45}
+.stack{display:flex;flex-direction:column;gap:16px}
+.muted{color:var(--muted)}
+.next-list{display:flex;flex-direction:column;gap:10px}
+.nx{display:grid;grid-template-columns:3.2rem minmax(0,1fr);gap:12px;align-items:baseline}
+.nx .dd{font-family:var(--display);font-weight:700;font-size:1.9rem;line-height:1;text-align:right}
+.nx .dd small{display:block;font-size:.8rem;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.nx b{font-weight:600}
+.nx span.in{color:var(--accent);font-family:var(--mono);font-size:.75rem;margin-left:6px;white-space:nowrap}
+.bar{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;margin:20px 0 4px}
+.bar .count{font-family:var(--mono);font-size:.8rem;color:var(--muted)}
+.fchips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0}
+.rf{display:inline-flex;align-items:center;gap:6px;padding:4px 10px 4px 5px;border:1px solid var(--line);border-radius:999px;background:var(--card);cursor:pointer;min-width:0}
+.rf:hover{border-color:var(--ink)}
+.rf[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.rf.open{border-style:dashed;padding-left:10px}
+.rf.all{padding-left:10px}
+.rf b{font-weight:600}
+.rf small{color:var(--muted);font-size:.74rem}
+.rf[aria-pressed="true"] small{color:inherit;opacity:.8}
+i.av{display:inline-grid;place-items:center;width:1.45rem;height:1.45rem;border-radius:50%;background:var(--soft);font-style:normal;font-weight:600;font-size:.75rem;color:var(--ink);flex:none}
+.rf[aria-pressed="true"] i.av{background:var(--paper)}
+.homolog{margin:8px 0 0;padding:10px 14px;border-left:3px solid var(--accent);background:var(--card);border-radius:0 6px 6px 0}
+
+.phase{margin-top:22px}
+.phase>header{position:sticky;top:env(safe-area-inset-top,0px);z-index:3;background:var(--paper);display:flex;flex-wrap:wrap;gap:2px 16px;align-items:baseline;border-bottom:1px solid var(--ink);padding:10px 0 8px}
+.phase h2{font-family:var(--display);font-weight:700;font-size:1.7rem;text-transform:uppercase;letter-spacing:.02em;margin:0;line-height:1}
+.phase header .rg{font-family:var(--mono);font-size:.78rem;color:var(--accent);font-weight:500}
+.phase header p{margin:0;flex-basis:100%;color:var(--muted);font-size:.9rem}
+
+.jalon{display:grid;grid-template-columns:5.6rem minmax(0,1fr);gap:clamp(12px,2vw,24px);padding:22px 0;border-bottom:1px solid var(--line)}
+.jalon.past .date{opacity:.45}
+.jalon.complete .body h3{text-decoration:line-through;text-decoration-thickness:1px;opacity:.7}
+.date{text-align:right;min-width:0}
+.date .wd{font-family:var(--mono);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.date .day{font-family:var(--display);font-weight:700;font-size:3.4rem;line-height:.9;letter-spacing:-.01em}
+.date .mon{font-family:var(--display);font-weight:600;font-size:1.15rem;text-transform:uppercase;letter-spacing:.06em;line-height:1.1}
+.date .end{font-family:var(--display);font-weight:600;font-size:1.05rem;color:var(--muted);margin-top:4px;line-height:1.1}
+.date .jc{display:inline-block;margin-top:8px;font-family:var(--mono);font-size:.78rem;color:var(--accent);font-weight:500}
+.body{min-width:0}
+.body h3{font-family:var(--display);font-weight:700;font-size:1.65rem;line-height:1.1;letter-spacing:.01em;margin:0 0 8px;text-wrap:balance}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.why{margin:0 0 10px;max-width:68ch}
+.steps{margin:0 0 12px;padding-left:1.15rem;max-width:72ch;display:flex;flex-direction:column;gap:5px}
+.out{margin:0 0 14px;max-width:72ch;font-size:.92rem;padding:8px 12px;background:var(--soft);border-radius:6px}
+.out b{font-family:var(--mono);font-size:.7rem;letter-spacing:.07em;text-transform:uppercase;margin-right:6px;color:var(--muted);font-weight:500}
+.stat{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin:0 0 14px;padding:8px 12px;border:1px solid var(--line);border-radius:6px;background:var(--card)}
+.stat .dots{display:flex;flex-wrap:wrap;gap:5px}
+.stat .sum{font-family:var(--mono);font-size:.78rem;color:var(--muted)}
+.stat .btn{margin-left:auto}
+.pd{display:inline-grid;place-items:center;width:1.6rem;height:1.6rem;border-radius:50%;font-size:.72rem;font-weight:600;border:1.5px solid var(--muted);color:var(--muted);flex:none}
+.pd.done{background:var(--ok);border-color:var(--ok);color:#fff}
+.pd.late{border-color:var(--accent);color:var(--accent)}
+.who{display:flex;flex-direction:column;border-top:1px solid var(--line)}
+.row{display:grid;grid-template-columns:minmax(11rem,15rem) minmax(0,1fr);gap:4px 16px;padding:7px 0;border-bottom:1px solid var(--line);align-items:start}
+.row .c{display:flex;flex-wrap:wrap;gap:5px;min-width:0}
+.row .t{min-width:0}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:2px 10px 2px 3px;font-size:.84rem;line-height:1.3;max-width:100%}
+.chip b{font-weight:600}
+.chip small{color:var(--muted);font-size:.74rem}
+.chip.open{border-style:dashed;padding-left:10px}
+.chip.all{padding-left:10px;background:var(--soft)}
+.chip.lead{border-color:var(--accent);background:var(--accent-soft)}
+.chip.lead small{color:var(--accent)}
+.row.lead .t::before{content:"Responsable · ";font-family:var(--mono);font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+.filtering .row{opacity:.5}
+.filtering .row.mine{opacity:1}
+.filtering .row.mine .t{font-weight:500}
+.compact .why,.compact .steps,.compact .out,.compact .who{display:none}
+.rules{margin-top:36px}
+.hom{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:8px 18px;margin:0;padding:0;list-style:none}
+.hom li{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid var(--line);padding:5px 0;font-size:.9rem}
+.hom li span{color:var(--muted)}
+footer.src{margin-top:28px;color:var(--muted);font-size:.85rem;max-width:80ch}
+
+/* Suivi */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px}
+.kpi{border:1px solid var(--line);border-radius:8px;background:var(--card);padding:10px 14px}
+.kpi b{display:block;font-family:var(--display);font-size:2.2rem;line-height:1;font-weight:700}
+.kpi span{font-size:.8rem;color:var(--muted)}
+.prog{height:6px;border-radius:3px;background:var(--soft);overflow:hidden;margin-top:6px}
+.prog i{display:block;height:100%;background:var(--ok)}
+.mxtools{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;margin:0 0 10px}
+.mxtools label{display:inline-flex;gap:6px;align-items:center;cursor:pointer}
+.mxwrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--card)}
+table.mx{border-collapse:separate;border-spacing:0;width:100%;min-width:max-content}
+.mx th,.mx td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:center;vertical-align:middle}
+.mx thead th{position:sticky;top:0;background:var(--card);font-weight:600;font-size:.82rem;z-index:2;border-bottom:1px solid var(--ink)}
+.mx thead th small{display:block;font-family:var(--mono);font-weight:500;color:var(--muted);font-size:.68rem}
+.mx .c1{position:sticky;left:0;z-index:1;background:var(--card);text-align:left;min-width:15rem;max-width:22rem;border-right:1px solid var(--line)}
+.mx thead .c1{z-index:3}
+.mx tr.ph th{background:var(--soft);font-family:var(--display);text-transform:uppercase;letter-spacing:.04em;font-size:1rem;text-align:left;position:static}
+.mx .lnk{border:0;background:none;padding:0;text-align:left;font-weight:600;cursor:pointer;color:var(--ink);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
+.mx .lnk:hover{text-decoration-color:var(--accent)}
+.mx .dt{display:block;font-family:var(--mono);font-size:.7rem;color:var(--muted);font-weight:500}
+.mx .dt.late{color:var(--accent)}
+.mx .tot{font-family:var(--mono);font-size:.78rem;color:var(--muted);white-space:nowrap}
+.mx tr.done .c1 .lnk{opacity:.55}
+.mx td.na{color:var(--line)}
+.mk{display:inline-grid;place-items:center;width:1.7rem;height:1.7rem;border-radius:50%;border:1.5px solid var(--muted);background:transparent;font-size:.85rem;font-weight:700;color:#fff;padding:0}
+.mk.done{background:var(--ok);border-color:var(--ok)}
+.mk.late{border-color:var(--accent)}
+button.mk{cursor:pointer}
+button.mk:hover{border-color:var(--ink)}
+.orph{display:inline-block;font-family:var(--mono);font-size:.66rem;letter-spacing:.05em;text-transform:uppercase;border:1px dashed var(--accent);color:var(--accent);border-radius:3px;padding:0 5px;margin-top:2px}
+
+/* Mon espace */
+.two{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:18px}
+.hello{font-family:var(--display);font-size:2.2rem;font-weight:700;text-transform:uppercase;line-height:1;margin:0 0 6px}
+.tl{list-style:none;padding:0;margin:0;display:flex;flex-direction:column}
+.tl li{display:grid;grid-template-columns:auto 4.6rem minmax(0,1fr);gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.tl li .d{font-family:var(--mono);font-size:.74rem;color:var(--muted)}
+.tl li .d.late{color:var(--accent)}
+.tl li.done .t{text-decoration:line-through;color:var(--muted)}
+.tl .t{min-width:0}
+.tl .t button.lnk{border:0;background:none;padding:0;text-align:left;cursor:pointer;font-weight:500}
+.tl .t button.lnk:hover{text-decoration:underline}
+.saved{font-family:var(--mono);font-size:.72rem;color:var(--muted)}
+.inl{display:flex;gap:8px;flex-wrap:wrap}
+.inl input[type=text]{flex:1 1 12rem;width:auto}
+.inl input[type=date]{flex:0 1 11rem;width:auto}
+
+/* Équipe */
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.pcard{border:1px solid var(--line);border-radius:8px;padding:12px 14px;background:var(--card);display:flex;flex-direction:column;gap:10px;min-width:0}
+.pcard .hd{display:flex;gap:8px;align-items:center}
+.pcard .hd input{font-weight:600}
+.rts{display:flex;flex-wrap:wrap;gap:5px}
+.rt{border:1px solid var(--line);background:transparent;border-radius:999px;padding:2px 10px;font-size:.82rem;cursor:pointer}
+.rt:hover{border-color:var(--ink)}
+.rt[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.rt.custom{border-style:dashed}
+.rt[disabled]{cursor:default;opacity:.85}
+.form{display:grid;gap:12px}
+.fld{display:flex;flex-direction:column;gap:4px;min-width:0}
+.fld>span{font-family:var(--mono);font-size:.7rem;letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.rlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px 14px}
+.rlist .it{display:flex;gap:6px;align-items:center}
+.glist{display:flex;flex-direction:column}
+.gi{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:6px 12px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.gi .d{font-family:var(--mono);font-size:.78rem;color:var(--muted);white-space:nowrap}
+.gi .r{grid-column:2;color:var(--muted);font-size:.85rem}
+.gi .acts{display:flex;gap:6px;grid-row:1/3;grid-column:3}
+.ord{font-family:var(--mono);font-size:.7rem;margin-left:4px;opacity:.8}
+
+.toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);transform:translateX(-50%);z-index:50;background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:8px;max-width:min(92vw,520px);box-shadow:0 6px 24px rgba(0,0,0,.25);font-size:.92rem}
+
+@media (max-width:900px){
+  .layout{grid-template-columns:minmax(0,1fr)}
+  aside{position:static;flex-direction:row;flex-wrap:wrap;gap:16px 24px}
+  aside .jbox{flex:1 1 260px}
+  aside .legend{flex:1 1 260px}
+  .intro,.two{grid-template-columns:minmax(0,1fr)}
+}
+@media (max-width:620px){
+  .jalon{grid-template-columns:minmax(0,1fr);gap:8px;padding:18px 0}
+  .date{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;text-align:left}
+  .date .day{font-size:2.4rem}
+  .date .end,.date .jc{margin:0}
+  .row{grid-template-columns:minmax(0,1fr)}
+  .phase h2{font-size:1.4rem}
+  .mx .c1{min-width:11rem}
+  .tl li{grid-template-columns:auto minmax(0,1fr)}
+  .tl li .d{grid-column:2}
+  .tl li .t{grid-column:2}
+  .gi{grid-template-columns:minmax(0,1fr)}
+  .gi .acts{grid-row:auto;grid-column:1}
+  .gi .r{grid-column:1}
+}
+@media (prefers-reduced-motion:no-preference){
+  .rf,.btn,.rt{transition:background-color .15s,color .15s,border-color .15s}
+  .prog i{transition:width .3s}
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="top">
+    <h1>Jalons de campagne</h1>
+    <p>Pré-campagne et campagnes BDE 2026/27. Chaque échéance a une date butoir, un responsable et les rôles qui y participent. Source : Guide du listeux BDE.</p>
+  </div>
+
+  <nav class="tabs" role="tablist" aria-label="Sections">
+    <button type="button" role="tab" id="tab-frise" data-act="tab" data-tab="frise" aria-selected="true">Frise</button>
+    <button type="button" role="tab" id="tab-suivi" data-act="tab" data-tab="suivi" aria-selected="false">Suivi<span class="n" id="n-suivi"></span></button>
+    <button type="button" role="tab" id="tab-moi" data-act="tab" data-tab="moi" aria-selected="false">Mon espace<span class="n" id="n-moi"></span></button>
+    <button type="button" role="tab" id="tab-equipe" data-act="tab" data-tab="equipe" aria-selected="false">Équipe</button>
+  </nav>
+
+  <div id="banner"></div>
+
+  <div class="layout">
+    <aside>
+      <section class="jbox" aria-labelledby="jl">
+        <p class="lbl" id="jl">Début des campagnes (J)</p>
+        <input type="date" id="j-date" value="2027-03-01" aria-describedby="jn">
+        <p class="countdown" id="cd"></p>
+        <small id="jn">Le guide ne donne pas cette date : 1er mars 2027 est une hypothèse. Toutes les échéances en « J−x » se recalculent quand vous la changez. Ce réglage est personnel : il ne change rien chez les autres.</small>
+        <button class="btn" id="j-reset" type="button">Revenir à l’hypothèse</button>
+      </section>
+
+      <section class="jbox" id="acct" aria-label="Compte"></section>
+
+      <section class="legend" aria-label="Légende">
+        <p><span class="tag guide">Date du guide</span> fixée par le guide ou les CE.</p>
+        <p><span class="tag page" style="border-style:solid">Repère du guide</span> période citée par le guide.</p>
+        <p><span class="tag propose">Date proposée</span> à valider ensemble.</p>
+        <p><span class="tag add">Ajouté</span> objectif créé par l’équipe.</p>
+        <p>Pastille en pointillés : rôle sans titulaire.</p>
+      </section>
+    </aside>
+
+    <main id="main">
+
+      <!-- FRISE -->
+      <section id="v-frise" aria-labelledby="tab-frise">
+        <div class="intro">
+          <section class="panel" aria-labelledby="nxl">
+            <h2 id="nxl">Prochaines échéances</h2>
+            <div class="next-list" id="next"></div>
+          </section>
+          <section class="panel" aria-labelledby="hyl">
+            <h2 id="hyl">À confirmer ensemble</h2>
+            <ul>
+              <li><b>Début des campagnes (J)</b> : pas dans le guide. Hypothèse du 1er mars 2027, à corriger à gauche dès que les CE donnent le planning.</li>
+              <li><b>WEL</b> : week-end du 2 et 3 janvier, dernier week-end des vacances de Noël comme l’an dernier. À vérifier dans le calendrier de l’école.</li>
+              <li><b>Audits</b> du 11 au 18 novembre : seule date ferme du guide pour la suite.</li>
+              <li><b>Qui porte quel rôle</b> se règle dans l’onglet Équipe, où l’on peut aussi ajouter des rôles et des objectifs.</li>
+            </ul>
+          </section>
+        </div>
+
+        <div class="bar">
+          <span class="count" id="count" aria-live="polite"></span>
+          <button class="btn" id="toggle" type="button" aria-pressed="false">Replier les détails</button>
+        </div>
+        <p class="lbl" style="margin:10px 0 0" id="fl">Voir les échéances de</p>
+        <div class="fchips" id="filters" role="group" aria-labelledby="fl"></div>
+        <div id="homolog"></div>
+
+        <div id="timeline"></div>
+
+        <section class="panel rules" aria-labelledby="rg">
+          <h2 id="rg">Règles qui valent pour tous les jalons</h2>
+          <ul>
+            <li><b>Discrétion absolue</b> jusqu’à l’amphi de lancement. Les CE peuvent retirer de 5 à 10 % des votes en cas de manquement grave.</li>
+            <li><b>Nom pipo</b> pour la préfecture et le démarchage. Le violet est interdit aux listes BDE cette année.</li>
+            <li>Vous êtes une <b>liste BDE et pas un BDE</b> : jamais de « quand on sera élus, on vous promet… ». Contrats relus par les CE, signés par le seul Prez.</li>
+            <li><b>Compte jamais à découvert</b>, chaque mouvement justifié, pièces gardées 10 ans, factures au nom de la liste.</li>
+            <li><b>Sécurité</b> : le Prez a le dernier mot, l’administration contrôle chaque événement.</li>
+            <li><b>Rythme</b> : réunion bureau + respos chaque semaine, réunions générales rares et préparées, un compte-rendu du Screz après chacune.</li>
+          </ul>
+        </section>
+
+        <section class="panel rules" aria-labelledby="hm">
+          <h2 id="hm">Tes homologues chez les Laya</h2>
+          <p class="muted" style="font-size:.88rem">Auteurs du guide, à contacter en toute discrétion pour un retour d’expérience.</p>
+          <ul class="hom" id="hom"></ul>
+        </section>
+
+        <footer class="src">Après l’élection, certains rôles prennent leur vrai sens : le Respo WEI, le Respo Études et le Respo Alumni n’ont presque aucune tâche avant, et le Vice-trez devient trésorier du WEI. En attendant, ils renforcent un pôle et ne sèchent aucun staff. Numéros de page cités = numéros imprimés du guide.</footer>
+      </section>
+
+      <!-- SUIVI -->
+      <section id="v-suivi" hidden aria-labelledby="tab-suivi"></section>
+
+      <!-- MON ESPACE -->
+      <section id="v-moi" hidden aria-labelledby="tab-moi"></section>
+
+      <!-- ÉQUIPE -->
+      <section id="v-equipe" hidden aria-labelledby="tab-equipe"></section>
+    </main>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+<script>
+/* ============================================================
+   À REMPLIR : copie ici les valeurs de ton projet Firebase
+   (Paramètres du projet, Tes applications, Configuration SDK)
+   et ton adresse Google d'admin. Le reste du fichier ne bouge pas.
+   ============================================================ */
+window.JALONS_CONFIG = {
+  firebase: {
+    apiKey: "AIzaSyBXfgUr0ke37Ru6xXP0IUHJwwlHGjnC0m4",
+    authDomain: "projet-bdx.firebaseapp.com",
+    projectId: "projet-bdx",
+    appId: "1:173795855763:web:b11faf8ba5a44d42286c66"
+  },
+  admins: ["clementcccc918@gmail.com"]
+};
+</script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script>
+/* Adaptateur : fait parler la page (qui attend window.claude.use('db' | 'user')) à Firebase.
+   Firebase Auth : connexion anonyme automatique, Google en option. Firestore : même modèle de données que la version Claude. */
+(function(){
+  var C = window.JALONS_CONFIG || {};
+  var cfg = C.firebase || {};
+  var admins = (C.admins || []).map(function(s){ return String(s).trim().toLowerCase(); }).filter(function(s){ return s && !/COLLE/i.test(s); });
+  var fb = window.firebase;
+  var configured = !!(cfg.apiKey && cfg.projectId && !/COLLE/i.test(cfg.apiKey + cfg.projectId));
+  var ok = !!(configured && fb && fb.initializeApp);
+  var state = {user:null, error:null};
+  var auth = null, fs = null, ready = Promise.resolve(null);
+
+  if (ok){
+    try {
+      fb.initializeApp(cfg);
+      auth = fb.auth(); fs = fb.firestore();
+      ready = new Promise(function(res){
+        var first = true;
+        auth.onAuthStateChanged(function(u){
+          state.user = u;
+          if (!first) return;
+          first = false;
+          if (u) { res(u); return; }
+          auth.signInAnonymously().then(function(c){ state.user = c.user; res(c.user); }, function(e){ state.error = e; res(null); });
+        });
+      });
+    } catch (e) { ok = false; state.error = e; }
+  }
+
+  function mapErr(e){
+    var m = {'permission-denied':'invalid_argument','not-found':'invalid_argument','unauthenticated':'invalid_argument',
+             'failed-precondition':'invalid_argument','invalid-argument':'invalid_argument','already-exists':'invalid_argument',
+             'resource-exhausted':'resource_exhausted','unavailable':'unavailable','deadline-exceeded':'unavailable','aborted':'unavailable'};
+    var c = String((e && e.code) || '').replace(/^firestore\//, '');
+    return {code:m[c] || 'unavailable', message:(e && e.message) || ''};
+  }
+  function rej(e){ throw mapErr(e); }
+  /* Firestore remplace un objet imbriqué dans update() ; la base de la version Claude le fusionne. On aplatit donc en chemins. */
+  function leaves(o, path, out){
+    Object.keys(o).forEach(function(k){
+      var v = o[k], p = path.concat([k]);
+      if (v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length) leaves(v, p, out);
+      else out.push([p, v]);
+    });
+    return out;
+  }
+  function mapPath(p){
+    var m = /^data\/users\/([^\/]+)\/perso$/.exec(p);
+    return m ? 'perso/' + m[1] : p;
+  }
+  function wrapDoc(r){
+    return {
+      id:r.id, path:r.path,
+      get:function(){ return r.get().catch(rej); },
+      set:function(d){ return r.set(d).catch(rej); },
+      update:function(d){
+        var args = [];
+        leaves(d, [], []).forEach(function(l){
+          args.push(new (Function.prototype.bind.apply(fb.firestore.FieldPath, [null].concat(l[0])))(), l[1]);
+        });
+        if (!args.length) return Promise.resolve();
+        return r.update.apply(r, args).catch(rej);
+      },
+      delete:function(){ return r.delete().catch(rej); },
+      onSnapshot:function(n, e){ return r.onSnapshot(n, function(x){ if (e) e(mapErr(x)); }); },
+      collection:function(p){ return wrapCol(r.collection(p)); }
+    };
+  }
+  function wrapCol(c){
+    return {
+      path:c.path,
+      doc:function(id){ return wrapDoc(id ? c.doc(id) : c.doc()); },
+      onSnapshot:function(n, e){ return c.onSnapshot(n, function(x){ if (e) e(mapErr(x)); }); }
+    };
+  }
+  function email(){
+    var u = state.user;
+    return (u && u.email && u.emailVerified !== false) ? String(u.email).toLowerCase() : '';
+  }
+  function isAdmin(){ var e = email(); return !!e && admins.indexOf(e) > -1; }
+
+  window.claude = {
+    use:function(name){
+      if (!ok) return Promise.resolve(null);
+      if (name === 'db') return ready.then(function(){
+        return {doc:function(p){ return wrapDoc(fs.doc(mapPath(p))); }, collection:function(p){ return wrapCol(fs.collection(mapPath(p))); }};
+      });
+      if (name === 'user') return ready.then(function(){
+        return {
+          id:function(){ return Promise.resolve(state.user ? state.user.uid : null); },
+          canEdit:function(){ return Promise.resolve(isAdmin()); },
+          isOwner:function(){ return Promise.resolve(isAdmin()); },
+          can:function(){ return Promise.resolve(null); }
+        };
+      });
+      return Promise.resolve(null);
+    }
+  };
+  window.JALONS_AUTH = {
+    state:function(){ var u = state.user; return {email:(u && u.email) || '', anon:!!(u && u.isAnonymous), error:!!state.error}; },
+    login:function(){
+      if (!ok) return Promise.reject({code:'auth/operation-not-allowed'});
+      var prov = new fb.auth.GoogleAuthProvider();
+      var u = auth.currentUser;
+      var p;
+      if (u && u.isAnonymous){
+        p = u.linkWithPopup(prov).catch(function(e){
+          if (e && e.code === 'auth/credential-already-in-use' && e.credential) return auth.signInWithCredential(e.credential);
+          throw e;
+        });
+      } else {
+        p = auth.signInWithPopup(prov);
+      }
+      /* Rafraîchit le jeton pour que les règles Firestore voient tout de suite l'adresse e-mail. */
+      return p.then(function(r){
+        var cu = auth.currentUser || (r && r.user);
+        return cu && cu.getIdToken ? cu.getIdToken(true) : null;
+      });
+    },
+    logout:function(){ return ok ? auth.signOut() : Promise.resolve(); }
+  };
+})();
+
+</script>
+<script>
+(function(){
+'use strict';
+  /* ---------- Rôles par défaut ---------- */
+  var DEF = {
+    prez:'Prez', trez:'Trez', screz:'Screz', vtrez:'Vice-trez', vpe:'VPE', event:'Respo Event', vpi:'VPI',
+    comm:'Respo Comm', media:'Respo Média', log:'Respo Log', deco:'Respo Déco', dem:'Respo Démarchage',
+    dd:'Respo DD', wei:'Respo WEI', etudes:'Respo Études', alumni:'Respo Alumni'
+  };
+  var DEF_ORDER = ['prez','trez','screz','vtrez','vpe','event','vpi','comm','media','log','deco','dem','dd','wei','etudes','alumni'];
+  var HOM = {
+    prez:'Yasmine Semiane', trez:'Alexandre Chen', screz:'Antzo Mazzucco', vtrez:'Anisse Benalegue',
+    vpe:'Morgane Petit', event:'Julien Benchimol', vpi:'Justin Tu', comm:'Éloïse Guimbellot',
+    media:'François Le Meur', log:'Basile Perugini', deco:'Laure Lacombe', dem:'Adrien Aggery',
+    dd:'Raphaël Ucay', wei:'Thia', etudes:'Lina', alumni:'Hugo Marie'
+  };
+
+  /* ---------- Phases ---------- */
+  var PH = {
+    1:{t:'Lancement',rg:'7 oct. → 6 nov.',s:'Poser l’administratif, l’organisation interne et lancer le démarchage avant les audits.'},
+    2:{t:'Audits',rg:'10 → 18 nov.',s:'Une semaine de travail sous pression qui décide des deux listes retenues.'},
+    3:{t:'Construction',rg:'25 nov. → 29 janv.',s:'Produire le film, les vêtements, le programme, les événements, les recettes, puis sécuriser banque et assurance.'},
+    4:{t:'Dernière ligne droite',rg:'J−28 → J−2',s:'Tout boucler avant le lancement : budget, déco, partenariats, dossier administratif, plannings, film, logistique.'},
+    5:{t:'Campagnes',rg:'J → J+10',s:'Vivre les dix jours, débattre, puis rendre les comptes aux CE.'}
+  };
+
+  /* ---------- Jalons ---------- */
+  /* d: date fixe ISO · j: décalage en jours par rapport à J · de/je: fin de période · src: guide | repere | propose | add */
+
+  var J = [
+  {id:'da',ph:1,d:'2026-10-09',src:'propose',crit:1,pg:'p. 5-6',
+   t:'Shotgun de la DA auprès des CE',
+   why:'Le formulaire des CE est ouvert depuis le mardi 29 septembre à 18h et fonctionne au premier arrivé, premier servi. Nom, particule, thème, couleur et mascotte vous identifient toute l’année, que vous soyez pipo, BDL ou BDX.',
+   steps:['Réunion générale courte et sondage pour trancher : nom de liste, particule, thème, couleur (avec son code HEX) et mascotte.','Le violet est interdit aux listes BDE cette année. Prévoir deux ou trois couleurs de repli, car tout part au shotgun.','Remplir le Google Form des CE dès que le choix est fait et suivre leurs posts Facebook pour les précisions.','En cas de désaccord, la Comm a le dernier mot sur le visuel.','Ne pas confondre avec le nom pipo, qui sert de couverture pour la préfecture et le démarchage jusqu’au reveal.'],
+   out:'DA enregistrée auprès des CE.',
+   who:[['prez','Soumet le formulaire et tranche en dernier recours.'],['comm','Propose les options de DA et a le dernier mot sur le visuel.'],['screz','Organise la réunion et le sondage, rédige le compte-rendu.'],['all','Votent, proposent des idées, gardent le secret.']]},
+
+  {id:'yasmine',ph:1,d:'2026-10-09',src:'propose',crit:1,pg:'p. 5',
+   t:'Prévenir Yasmine Semiane et lui envoyer la liste',
+   why:'Avant toute déclaration officielle, le guide demande de contacter la présidente actuelle du BDE avec la liste des membres, notamment du petit bureau. Elle vous épaule ensuite sur l’administratif.',
+   steps:['Envoyer à Yasmine Semiane les noms du petit bureau et des membres déjà connus.','Lui demander un exemple de PV et des modèles de statuts, ainsi qu’un point sur le calendrier des CE.','Alexandre Chen (Trez actuel) peut aussi aider sur les démarches administratives.','Rappel : tout reste entre vous, elle et les CE.'],
+   out:'Contact établi, modèles de PV et de statuts reçus.',
+   who:[['prez','Contacte Yasmine et lui transmet la liste.'],['trez','Prend contact avec Alexandre Chen pour l’administratif.'],['screz','Tient la liste des membres à jour.']]},
+
+  {id:'comminterne',ph:1,d:'2026-10-12',src:'propose',pg:'p. 21, 42-43',
+   t:'Communication interne et Drive de liste en place',
+   why:'Sans canaux clairs et sans Drive rangé, l’information se perd et les audits arrivent trop vite. Le guide place cette étape tout au début.',
+   steps:['Communauté WhatsApp (ou Messenger) avec au moins deux conversations : annonces et discussion générale. Sous-groupes par pôle, plus un groupe COMM × EVENT.','Drive de liste : un espace par pôle (Event, Démarchage, Comm), un par membre du petit bureau (Prez, Trez, Screz) et un pour la Log.','Fichier contacts partagé : prénom, nom, téléphone, mail, numéro de chambre. Chacun enregistre les 23 autres dans son téléphone.','Document « Idées pour le programme » ouvert à toute la liste : il nourrira le programme électoral.','Compte-rendu après chaque réunion, déposé sur le Drive.'],
+   out:'Communauté, Drive, fichier contacts et document d’idées créés, premier CR archivé.',
+   who:[['screz','Crée et range le Drive, tient le fichier contacts, rédige tous les CR.'],['prez','Valide le fonctionnement, anime les réunions générales.'],['comm','Ouvre le groupe COMM × EVENT avec Quentin.'],['event','Alimente le groupe COMM × EVENT dès qu’un événement avance.'],['vpi','Relance chacun pour remplir le document d’idées programme.'],['all','Rejoignent les groupes, remplissent leur ligne de contact, ajoutent leurs idées.']]},
+
+  {id:'prefecture',ph:1,d:'2026-10-16',src:'propose',crit:1,pg:'p. 9',
+   t:'Déclaration de l’association en préfecture',
+   why:'Sans association 1901 déclarée, une liste ne peut ni être élue, ni ouvrir un compte, ni organiser d’événements. C’est la première étape administrative et celle qui peut traîner le plus.',
+   steps:['Avant de déposer : choisir le nom pipo (public au Journal Officiel des associations, donc rien de ridicule) et l’adresse du siège social, surtout pas la chambre du Prez.','Tenir l’assemblée constitutive : PV avec nom et prénom du signataire, plus feuille d’appel des présents (quelques signatures suffisent), en PDF.','Rédiger les statuts, datés et signés par le Prez et le Trez avec nom, prénom et fonction, en PDF.','Déposer la déclaration en ligne sur Service-Public.fr et télécharger le récépissé.','Délai normal de 1 à 2 semaines, mais un rejet peut tout retarder de plusieurs mois. Déposer tôt pour que tout soit réglé avant les audits du 11 novembre.'],
+   out:'Récépissé de déclaration (PDF), en main avant le 30 octobre.',
+   who:[['prez','Fait la démarche en ligne.'],['trez','Signe les statuts avec le Prez, co-responsable légal.'],['screz','Aide à rédiger PV et statuts, archive le récépissé.'],['all','Quelques signatures sur la feuille d’appel.']]},
+
+  {id:'poles',ph:1,d:'2026-10-23',src:'propose',pg:'p. 6, 12-13',
+   t:'Pôles constitués et respos désignés',
+   why:'La pré-campagne s’organise en quatre pôles plus le bureau. Les audits individuels s’appuient sur des responsables identifiés : il faut les nommer avant le 11 novembre.',
+   steps:['Répartir les 24 dans les pôles Comm, Démarchage, Event et Log selon leurs affinités. Les plus investis peuvent être dans plusieurs pôles.','Repères du guide : Event environ 7 personnes (dont le Respo Déco), Démarchage environ 4, Log le Respo plus 1 à 3 personnes, Comm le Respo Comm, le Respo Média et les designers.','Désigner les rôles encore libres : Respo Démarchage, Respo Média, Respo Déco, Respo WEI, Respo Études, Respo Alumni.','Ne pas précipiter (la motivation évolue), ne pas attendre la dernière minute (tensions). Les pôles peuvent encore bouger.'],
+   out:'Tableau « qui fait quoi » dans le Drive, première réunion de chaque pôle planifiée.',
+   who:[['prez','Arbitre la répartition et propose les respos.'],['screz','Tient le tableau des pôles, planifie les premières réunions.'],['vpi','Recueille les envies de chacun et surveille la charge de travail.'],['event','Cadre le pôle Event.'],['vpe','Suit le pôle Démarchage avec son responsable.'],['comm','Cadre le pôle Comm.'],['log','Choisit ses renforts.'],[['media','deco','dem'],'À désigner avant le 23 octobre.'],[['wei','etudes','alumni'],'À désigner. Rejoignent un pôle en attendant le mandat.']]},
+
+  {id:'demoutils',ph:1,d:'2026-10-30',src:'propose',pg:'p. 16-18',
+   t:'Outils de démarchage prêts',
+   why:'Le démarchage est long et ne dépend pas que de vous. Certaines entreprises ne travaillent qu’avec une seule liste et vous êtes en concurrence avec les autres écoles.',
+   steps:['Adresse mail « pro », signatures pro et QR code.','Plaquette : événements prévus (même provisoires), visibilité offerte aux partenaires, brève présentation du groupe Centrale Lille, contacts du Prez, du VPE et du responsable de pôle.','Mails types par secteur (alimentaire, finance, boissons, événement…), à personnaliser avant envoi.','Sheet de suivi : entreprise, contact, personne en charge, statut, relances. Dossier Drive avec conventions en attente et tutos.','Règles : nom pipo uniquement, jamais « quand on sera élus… », contrats relus par les CE et signés par le seul Prez.'],
+   out:'Plaquette PDF, mails types, sheet de suivi et dossier Drive prêts.',
+   who:[['dem','Construit les outils, répartit les entreprises par thème.'],['vpe','Co-pilote et sert de contact principal des partenaires.'],['comm','Réalise la plaquette, le QR code et la charte.'],['prez','Apparaît comme contact sur la plaquette, signera les contrats.']]},
+
+  {id:'demv1',ph:1,d:'2026-11-02',src:'propose',pg:'p. 17',
+   t:'Première vague de démarchage envoyée',
+   why:'Le guide propose trois étapes. La première consiste à lancer plein de bouteilles à la mer : l’immense majorité des mails resteront sans réponse, mais quelques-uns aboutiront.',
+   steps:['Envoyer massivement les mails à toutes les entreprises possibles, en ajoutant au moins une phrase propre à l’entreprise ou au secteur.','Chaque membre de la liste fournit ses contacts en entreprise (famille, amis) : c’est le meilleur levier pour les étapes suivantes.','Mettre à jour le sheet de suivi et relancer régulièrement.','Décider avec le bureau des contreparties acceptables : à vous de juger si la réduction en vaut la peine.'],
+   out:'Premiers mails partis, sheet de suivi rempli, contacts personnels collectés.',
+   who:[['dem','Pilote l’envoi et les relances.'],['vpe','Cible les entreprises prioritaires et les contacts privilégiés.'],['prez','Valide avec le bureau les contreparties.'],['all','Donnent leurs contacts personnels.']]},
+
+  {id:'compta',ph:1,d:'2026-11-04',src:'propose',pg:'p. 30-40',
+   t:'Comptabilité de liste en place',
+   why:'Le Trez engage sa responsabilité civile, pénale et fiscale, et les audits jugent la rigueur. Tout doit être justifié dès le premier euro.',
+   steps:['Le compte ne passe jamais à découvert : cinq ans d’interdiction bancaire à la clé.','Chaque mouvement sur le compte officiel a une pièce justificative : facture reçue ou émise, avoir, note de frais, encaissement, attestation de don. Un ticket de caisse n’en est pas un, sauf cas exceptionnel.','Nomenclature de classement partagée, dossier Drive par type, numérisation dès réception, conservation 10 ans.','Toujours demander la facture avant de payer, au minimum au nom de la liste, avec le nom du listeux qui avance l’argent. Note de frais signée par le Trez et le listeux remboursé.','Tableau de suivi des avances entre listeux et association : personne ne fait de virement interne sans prévenir le Trez.','Collecte pré-campagne : l’objectif est que les listeux ne dépensent rien hors merch. Voir le guide de trésorerie des Jones et Alexandre Chen. Le guide signale lui-même que certaines pratiques (paris sportifs) sont illégales : à cadrer avec le Prez.'],
+   out:'Dossier de pièces organisé, tableau de suivi, nomenclature partagée.',
+   who:[['trez','Met en place les processus et tient les comptes.'],['vtrez','Apprend tous les processus : notes de frais, budgets prévisionnels, suivi.'],['prez','A un droit de regard permanent, signe les notes de frais quand le Trez est remboursé.'],['all','Demandent la facture avant de payer, la transmettent aussitôt, préviennent le Trez avant tout virement.']]},
+
+  {id:'banque',ph:1,d:'2026-11-06',src:'propose',crit:1,pg:'p. 10, 33',
+   t:'Compte bancaire de l’association ouvert',
+   why:'Compte et carte conditionnent toute la préparation des campagnes. L’an dernier l’équipe a tardé et s’est mis une pression inutile. Une ouverture rapide est valorisée aux audits.',
+   steps:['Prendre rendez-vous dès réception du récépissé, dans la semaine du 26 octobre.','Le Prez et le Trez doivent être présents ensemble.','Pièces à apporter : justificatif de domicile, récépissé de la préfecture, PV de l’assemblée constitutive, statuts, et ce que le banquier demandera.','Exemple du guide : Crédit Mutuel, agence de Hellemmes, compte sans frais. Toute autre banque convient.','Carte, chéquier et accès en ligne à lancer dès l’ouverture (voir l’échéance du 29 janvier).'],
+   out:'Compte ouvert au nom de l’association, RIB en poche.',
+   who:[['trez','Prépare le dossier et mène le rendez-vous.'],['prez','Présent obligatoirement, signe.'],['vtrez','Suit l’ouverture pour pouvoir seconder le Trez.']]},
+
+  {id:'ddform',ph:1,d:'2026-11-06',src:'propose',pg:'p. 76-77',
+   t:'Formation Éclosion au bilan carbone',
+   why:'Avant les audits, le Respo DD est formé par Éclosion, l’association écologique de l’école, à produire un rapport RSE avec bilan carbone. Un non-respect des règles du CE peut coûter des malus sur les votes finaux.',
+   steps:['Contacter Éclosion et caler la formation avant le 11 novembre.','Apprendre la méthode : recenser aliments (quantités, empreinte), biens matériels et services en kg équivalent CO₂, avec justifications et commentaires.','Récupérer les règles du CE sur le rapport RSE et les garder sous la main.','Prévenir Trez et Log : ils fourniront les sheets d’achats à exploiter.'],
+   out:'Formation suivie, méthode et règles du CE comprises.',
+   who:[['dd','Suit la formation et récupère le modèle de rapport.'],['trez','Prépare la remontée des achats vers le Respo DD.'],['log','Idem pour les achats d’aliments et de matériel.'],['screz','Tient compte de la formation dans les plannings.']]},
+
+  /* ---------- Audits ---------- */
+  {id:'auditsprep',ph:2,d:'2026-11-10',src:'propose',pg:'p. 11',
+   t:'Équipe prête pour les audits',
+   why:'Les consignes tombent à l’ouverture des audits et le délai est généralement d’une semaine. Mieux vaut que chacun sache déjà ce qu’il produira.',
+   steps:['Réunion bureau et respos : relire la section Audits du guide et répartir les livrables (fiche event, budget, planning, plan logistique, supports de communication).','Rappel : tout se fait avec la DA pipo, sauf mention contraire.','Prévoir les épreuves rush : elles peuvent tomber à tout moment et sont propres à chaque membre du bureau ou de pôle.','Préparer des templates (fiche event, budget, planning, fiche log) et dégager les agendas.'],
+   out:'Livrables répartis, templates prêts, agendas dégagés.',
+   who:[['prez','Anime la réunion et répartit.'],['screz','Prépare le planning et le suivi des livrables.'],['event','Prépare le modèle de fiche event.'],['trez','Prépare le modèle de budget.'],['log','Prépare le plan logistique et les fiches.'],['comm','Prépare les supports de communication.'],['dd','Se tient prêt pour l’épreuve RSE si elle est demandée.'],['vpi','Prépare ses audits personnels.'],['alumni','Révise le fonctionnement du réseau alumni (audit alumni).']]},
+
+  {id:'audits',ph:2,d:'2026-11-11',de:'2026-11-18',src:'guide',crit:1,pg:'p. 11',
+   t:'Audits de listes',
+   why:'Seules les deux listes qui obtiennent la meilleure moyenne sont retenues pour les campagnes. C’est aussi le premier vrai test de travail sous pression.',
+   steps:['Partie 1, simulation d’événements : fiche event, budget, planning, plan logistique et supports de communication, rendus en une semaine pour des événements fictifs.','Épreuves rush individuelles ou par pôle, à tout moment de la période.','Notation : les 5 membres du bureau Laya et les responsables de pôle notent chaque critère, sur une grille coefficientée non communiquée.','Partie 2, audits individuels après le rendu : bureau, respos de pôle, Respo Log et d’autres respos rencontrent leurs homologues.','Grilles et remarques écrites communiquées ensuite : à relire comme des conseils pour les campagnes.','Le script du film a servi d’épreuve flash l’an dernier : si l’occasion se présente, écrivez-le.'],
+   out:'Tous les livrables rendus au plus tard le 18 novembre, audits individuels passés.',
+   who:[['prez','Coordonne la liste et passe son audit.'],['event','Fiche event et audit Event.'],['trez','Budget et audit Trez.'],['vtrez','Aide sur le budget.'],['screz','Planning de staff et comptes-rendus.'],['log','Plan logistique, fiches recettes, audit Log.'],['comm','Supports de communication.'],['media','Visuels et contenus.'],['deco','Décors des événements fictifs.'],['vpi','Passe ses audits propres, avec une personne peu chargée.'],['dd','Épreuve RSE si elle est demandée.'],['alumni','Audit alumni.']]},
+
+  {id:'listecomplete',ph:2,d:'2026-11-15',src:'repere',pg:'p. 5, 7-8',
+   t:'Liste complète à 24',
+   why:'La liste réunit 24 élèves de l’École Centrale de Lille, dont au moins un en double diplôme international. Le noyau dur suffit pour avancer, les derniers arrivants peuvent suivre. L’an dernier la liste a attendu mi-novembre pour être sûre d’être avec ses amis les plus proches.',
+   steps:['Vérifier la cohérence : amitiés, motivation, équilibre entre pôles.','Contrôler la présence d’au moins un double diplôme international.','Intégrer les nouveaux : groupes, Drive, présentation du fonctionnement, pôle d’accueil.'],
+   out:'24 noms confirmés, fichier contacts à jour.',
+   who:[['prez','Valide la composition finale.'],['vpi','Accueille les nouveaux et veille à l’ambiance.'],['screz','Met à jour fichier, groupes et Drive.'],['all','Présentent des amis motivés, en toute discrétion.']]},
+
+  /* ---------- Construction ---------- */
+  {id:'debrief',ph:3,d:'2026-11-25',src:'propose',pg:'p. 7, 11',
+   t:'Débrief des audits',
+   why:'Les grilles et remarques écrites sont votre première évaluation externe. Elles servent de feuille de route pour les campagnes.',
+   steps:['Réunion générale pour lire notes, remarques et points de progrès.','Si la liste est retenue : les CE font signer au Prez le règlement des campagnes et Yasmine transmet un Drive avec les documents utiles et le planning des campagnes.','Mettre à jour la date J en haut de cette page dès que le planning est connu.','Relancer les chantiers : programme, film, vêtements, démarchage, WEL.'],
+   out:'CR du débrief, liste d’actions, date J connue.',
+   who:[['prez','Anime le débrief, signe le règlement des campagnes.'],['screz','Rédige le CR et le transforme en actions.'],['vpi','Veille au moral de la liste.'],['all','Lisent leurs retours individuels.']]},
+
+  {id:'inventaire',ph:3,d:'2026-11-27',src:'propose',pg:'p. 73',
+   t:'Inventaire du matériel des listeux',
+   why:'Avant de choisir recettes et achats, il faut savoir ce que la liste possède déjà.',
+   steps:['Recenser le matériel de cuisine et les objets utiles détenus par les membres.','Décider ce que chacun apportera et ce qu’il faudra acheter, en dernier recours.','Comparer avec le matériel déjà disponible à la Rez.'],
+   out:'Sheet d’inventaire par personne, liste des manques.',
+   who:[['log','Conçoit et exploite l’inventaire.'],['screz','Relance les retardataires.'],['trez','Chiffre ce qu’il faudra acheter.'],['deco','Ajoute le matériel de bricolage et de déco.'],['all','Renseignent leur matériel.']]},
+
+  {id:'script',ph:3,d:'2026-12-04',src:'propose',pg:'p. 15-16',
+   t:'Script du film de liste validé',
+   why:'Le film est votre première présentation officielle devant les Centraliens, à l’amphi de lancement. Il doit captiver et faire rire.',
+   steps:['Écrire tout le script avant de tourner, pour ne pas inventer l’histoire en filmant.','Garder une histoire cohérente, sans multiplier les quêtes secondaires ni les blagues de mauvais goût.','Prévoir les sous-titres : le son des amphis est souvent médiocre.','Si un script est produit en épreuve flash pendant les audits, repartir de celui-là.'],
+   out:'Script validé par la liste et plan de tournage.',
+   who:[['comm','Pilote l’écriture et tranche.'],['media','Contribue au scénario, à l’acting et à la réal.'],['prez','Valide le ton.'],['all','Proposent des gags, joueront dans le film.']]},
+
+  {id:'vetements',ph:3,d:'2026-12-11',src:'propose',crit:1,pg:'p. 15',
+   t:'Vêtements et goodies commandés',
+   why:'Les vêtements doivent arriver à temps pour les photos de liste et le tournage. Devis, BAT et ajustements prennent plus de temps qu’on ne le pense.',
+   steps:['Choisir les designs avec toute la liste par sondages. La Comm tranche en cas de désaccord.','Vectoriser les fichiers (Illustrator, Affinity Designer ou Inkscape) : les imprimeurs ne travaillent qu’avec du vectoriel.','Demander des devis, comparer, faire valider le budget par le Trez.','Vérifier soigneusement chaque BAT avant d’autoriser l’impression.','Passer la commande avant les fêtes, réception attendue avant le 22 janvier.'],
+   out:'Commande payée, BAT validés, date de livraison confirmée.',
+   who:[['comm','Pilote designs, devis et commande.'],['trez','Valide les devis, paie, conserve la facture.'],['prez','Valide les choix finaux.'],['media','Aide aux designs.'],['screz','Collecte tailles et quantités.'],['all','Répondent aux sondages.']]},
+
+  {id:'progv1',ph:3,d:'2026-12-18',src:'propose',pg:'p. 25-26',
+   t:'Programme électoral, première version',
+   why:'Le programme vous démarque en dehors des événements, et le Prez s’appuie dessus le jour du débat. C’est un engagement : il est fait pour être réalisé.',
+   steps:['Trier les idées du document partagé, discuter avec des Centraliens, analyser les anciens programmes BDE.','Consulter des Gvieux renseignés (anciens de CLA, anciens Prez BDE) : beaucoup d’idées novatrices ont déjà été essayées.','Contacter les associations concernées par chaque mesure.','Ni trop modeste, ni trop ambitieux : choisir des mesures réalistes qui tiennent à cœur.','Lister les contradictions possibles et demander à la liste de poser des questions pièges au Prez.'],
+   out:'Programme V1 relu par le bureau.',
+   who:[['prez','Rédige et défendra le programme.'],['vpi','Co-rédige et sonde les associations.'],['all','Idées et questions pièges.']]},
+
+  {id:'evenements',ph:3,d:'2026-12-18',src:'propose',crit:1,pg:'p. 13-14, 65-68',
+   t:'Thème de campagne et événements arrêtés',
+   why:'Le pôle Event ouvre la chaîne : tant qu’il n’a pas fixé événements, menus et jeux, Comm, Log et Trez ne peuvent pas avancer.',
+   steps:['Choisir un thème général large, relié au nom de liste. Le guide le recommande, voire l’impose : il donne sa cohérence aux visuels, aux décos et aux repas.','Arrêter la liste des événements (environ 11 chez les Laya) : soirées Foyer 20h-00h, une soirée dansante 22h-3h, aprems à la Rez 14h-18h, petits déjeuners, déjeuners et brunchs.','Un nom d’événement avec jeu de mots, relié au thème.','Estimer le nombre de participants : cela fixe repas, fûts et espace.','Filtrer budget et faisabilité avec Trez, Log et Screz. Sécurité : pas de feu ni d’objets tranchants, plan pluie pour l’extérieur.','Retenir les premières recettes à tester au WEL.'],
+   out:'Tableau des événements : nom, date cible, lieu, thème, participants estimés, responsable de l’événement.',
+   who:[['event','Pilote le brainstorming et le tri, désigne un responsable par événement.'],['trez','Donne une estimation de budget avant d’approfondir.'],['log','Évalue faisabilité matérielle et recettes.'],['screz','Évalue le staff nécessaire.'],['comm','Propose les noms et l’univers visuel.'],['deco','Propose les idées de déco.'],['prez','Arbitre la sécurité, dernier mot.'],['vpi','Renfort Event sur les contacts d’associations (EH, Foy’s, CLIC).']]},
+
+  {id:'wel',ph:3,d:'2027-01-02',de:'2027-01-03',src:'repere',pg:'p. 6-7',
+   t:'WEL : week-end de liste',
+   why:'L’an dernier, le WEL a eu lieu le dernier week-end des vacances de Noël. Il soude la liste, permet de décider ensemble et de tester les recettes en vraie grandeur.',
+   steps:['Réserver logement et transport avant le 4 décembre.','Tester les recettes principales : les quantités réelles diffèrent souvent de la fiche (cheese naans produits en moitié moindre, crêpes bien plus longues que prévu).','Prendre ensemble les décisions encore ouvertes : programme, film, plannings.','Garder du temps pour s’amuser : la cohésion fait la différence en campagne.'],
+   out:'Recettes testées avec quantités et temps mesurés, décisions notées dans un CR.',
+   who:[['prez','Anime les décisions collectives.'],['screz','Organise logement, transport, repas et CR.'],['event','Programme les tests de recettes et d’activités.'],['log','Mesure quantités, temps et matériel, met à jour les fiches.'],['vpi','Veille à l’ambiance et à l’intégration de chacun.'],['trez','Budget et factures du week-end.'],['vtrez','Seconde le Trez.'],['all','Participent aux tests.']]},
+
+  {id:'fichesevent',ph:3,d:'2027-01-22',src:'propose',pg:'p. 13-14',
+   t:'Fiches event complètes',
+   why:'La fiche event rassemble toutes les informations écrites d’un événement. Si elle est mal préparée, les erreurs arrivent pendant le staff.',
+   steps:['Une fiche par événement, tenue par son responsable avec le Respo Event. Chaque pôle remplit sa section (recettes, activités, sécurité…).','Indiquer : nombre de staffeurs, temps d’installation et de rangement, matériel, décoration, annexes pour les staffeurs hors pôle Event, plan pluie.','Budget validé par le Trez, logistique validée par la Log. Fiches tenues à jour à chaque modification.','Transmettre à la Comm titres et détails d’activités pour les affiches.'],
+   out:'Une fiche validée par Trez et Log pour chaque événement.',
+   who:[['event','Supervise toutes les fiches.'],['trez','Valide le budget de chaque fiche.'],['log','Valide la logistique de chaque fiche.'],['comm','Reçoit les infos pour les supports.'],['screz','Calcule les besoins en staff.'],['deco','Ajoute la fiche déco.'],['prez','Valide la sécurité.'],['dd','Relève les sources d’impact (nourriture, matériel).']]},
+
+  {id:'recettes',ph:3,d:'2027-01-22',src:'propose',pg:'p. 14, 72-73',
+   t:'Fiches recettes testées et figées',
+   why:'Les fiches recettes servent de tuto aux staffeurs et normalisent les quantités. Tout oubli coûte du temps, donc du sommeil.',
+   steps:['Choisir un template unique et répartir la rédaction entre le pôle Log et tous les listeux disponibles.','Ingrédients et quantités « pratiques » pour un nombre précis de repas (par exemple 1 kg de farine pile), matériel, temps de préparation et de cuisson.','Étapes extrêmement précises : certains listeux sont mauvais cuisiniers.','Corriger après les tests du WEL. Si une recette est trop compliquée, la remplacer avec le pôle Event.','Informer le Trez des changements (courses) et le Respo DD (bilan carbone).'],
+   out:'Une fiche par plat et par boisson, quantités validées.',
+   who:[['log','Choisit le template et pilote la rédaction.'],['event','Choisit les plats avec la Log et goûte.'],['trez','Chiffre les courses.'],['dd','Récupère les listes d’ingrédients.'],['all','Rédigent des fiches.']]},
+
+  {id:'bancaire',ph:3,d:'2027-01-29',src:'repere',crit:1,pg:'p. 33-34',
+   t:'Pack bancaire opérationnel',
+   why:'Le guide demande d’avoir tout en place dès fin janvier : pendant les campagnes, un paiement d’urgence ne peut pas attendre un code envoyé par la poste.',
+   steps:['Carte bancaire reçue et activée avant fin janvier.','Chéquier d’au moins une cinquantaine de chèques (les cautions sont fréquentes en campagne).','Accès complet au compte en ligne.','Application bancaire activée sur le téléphone. Le code d’activation arrive souvent par courrier : à lancer tôt.','Secure Pass ou carte d’ajout de bénéficiaires activé pour ajouter un bénéficiaire instantanément. Le guide : « le truc à faire absolument ».','Virements instantanés activés.'],
+   out:'Les six éléments cochés.',
+   who:[['trez','Pilote et vérifie chacun des six éléments.'],['prez','Disponible pour valider auprès de la banque.'],['vtrez','Se fait équiper aussi pour seconder le Trez.']]},
+
+  {id:'assurance',ph:3,d:'2027-01-29',src:'propose',crit:1,pg:'p. 10',
+   t:'Assurance Responsabilité Civile Organisateur',
+   why:'Elle est absolument obligatoire pour les campagnes : en cas de blessé ou d’incident avec votre matériel, elle couvre l’association.',
+   steps:['Demander des devis « Responsabilité Civile Organisateur ». La MAIF est l’assureur privilégié des assos et a été choisie l’an dernier.','Repère de coût : environ 160 € pour un engagement de 12 mois, alors que l’usage réel est d’une dizaine de jours.','Déclarer l’activité exactement : une fausse déclaration peut annuler la garantie.','Payer avec une facture au nom de la liste et archiver le contrat sur le Drive.'],
+   out:'Attestation d’assurance valable sur toute la période des campagnes.',
+   who:[['prez','Responsable légal, signe le contrat.'],['trez','Paie et archive la facture.'],['screz','Archive l’attestation sur le Drive.']]},
+
+  /* ---------- Dernière ligne droite ---------- */
+  {id:'budget',ph:4,j:-28,src:'propose',crit:1,pg:'p. 30, 68',
+   t:'Budget prévisionnel des campagnes figé',
+   why:'Le budget fixe ce qu’on peut commander et dépenser. Le pôle Event ne doit pas préparer un événement qui dépasse l’enveloppe.',
+   steps:['Additionner les ressources : argent collecté, partenariats, éventuelle participation des listeux (en principe le merch seulement).','Chiffrer chaque fiche event et chaque fiche log, arbitrer avec le Prez.','Prévoir les imprévus et les paiements de prestataires.','Rappel légal : les recettes de bière doivent dépasser ce qu’elle a coûté (pas de vente à perte) et les open-bars sont interdits.'],
+   out:'Budget global et par événement validé par le bureau.',
+   who:[['trez','Construit et fige le budget.'],['vtrez','Suit le budget et prépare les tableaux.'],['event','Ajuste les événements à l’enveloppe.'],['log','Chiffre les courses.'],['deco','Chiffre les décos.'],['prez','Valide.']]},
+
+  {id:'decocmd',ph:4,j:-24,src:'propose',pg:'p. 70-71',
+   t:'Commandes de matériel de déco passées',
+   why:'Des commandes qui arrivent après le début des fabrications, ou pire des campagnes, ne servent plus à rien.',
+   steps:['Lister précisément le matériel de chaque événement, avec liens de commande et prix, pour éviter le décalage entre ce qui est imaginé et ce qui est commandé.','Transmettre au Trez et relancer pour que tout arrive avant J−14.','Prévoir où stocker et fabriquer : un appartement devient atelier.','Respecter les règles du Foyer : limiter les décors inflammables, pas de sable.'],
+   out:'Commandes passées, livraisons confirmées avant J−14.',
+   who:[['deco','Liste le matériel, prépare les liens et relance.'],['trez','Valide et paie.'],['log','Prévoit le stockage.'],['event','Vérifie la cohérence avec chaque événement.'],['screz','Prévoit les séances de fabrication.']]},
+
+  {id:'partenariats',ph:4,j:-21,src:'propose',pg:'p. 16-18, 57-58',
+   t:'Partenariats signés',
+   why:'Les partenaires peuvent aider en matériel, en argent ou en logistique. Après le premier envoi massif, les deux étapes suivantes font la différence.',
+   steps:['Étape 2 : cibler des entreprises précises par des contacts plus privilégiés.','Étape 3 : activer les contacts de vos proches, le meilleur moyen de décrocher un partenariat.','Chaque contrat relu par les CE puis signé par le seul Prez.','Vérifier avec la Comm que les contreparties demandées (photos, réels…) sont réalisables.','Planifier la réception des dons : stocks, dates de livraison, qui réceptionne.'],
+   out:'Liste des partenariats signés, contreparties et calendrier de livraison.',
+   who:[['dem','Pilote relances, contrats et suivi.'],['vpe','Négocie, suit les contreparties, coordonne les livraisons.'],['prez','Signe les contrats après relecture des CE.'],['comm','Confirme que les contreparties sont faisables.'],['log','Prévoit le stockage des dons.'],['all','Fournissent leurs contacts.']]},
+
+  {id:'adminsecu',ph:4,j:-14,src:'propose',crit:1,pg:'p. 19-20, 68',
+   t:'Dossier administratif et sécurité des événements',
+   why:'L’administration examine de près chaque événement, parfois avec excès de prudence. Le Prez est responsable légal et a le dernier mot sur la sécurité.',
+   steps:['Réservation du Foyer sur le site de CLA : fûts souhaités et description précise des activités, validée par Éloïse Guimbellot (présidente de la Foy’s Team).','Soirée 20h-00h : charte signée par le Prez plus de 48 h avant, lue par toute la liste.','Soirée dansante 22h-3h : convention transmise à l’administration au moins une semaine avant, billetterie CLA via Alexandre Chen, réservation d’EH via Raphael Guillo, 3 vigiles que le BDE actuel fait venir (contact : Yasmine Semiane).','Règles du Foyer : maximum 400 personnes en soirée dansante, alcools à moins de 18°, happenings validés par la Foy’s.','Prévoir un temps avec Yasmine pour passer en revue la soirée dansante.'],
+   out:'Réservations confirmées, charte et convention signées, vigiles et billetterie bloqués.',
+   who:[['prez','Signe charte et convention, arbitre la sécurité.'],['event','Dépose les réservations et décrit les activités.'],['screz','Planifie le staff de sécurité.'],['trez','Billetterie et prix.'],['vpi','Appuie les contacts avec les associations (EH, Foy’s, CLIC).'],['log','Matériel de service au Foyer.']]},
+
+  {id:'planning',ph:4,j:-14,src:'propose',crit:1,pg:'p. 45-47',
+   t:'Planning de staff, version 1',
+   why:'Le planning dit à chacun ce qu’il fait à chaque moment. Il sera modifié sans arrêt, mais le préparer en amont fait gagner énormément de temps pendant les campagnes.',
+   steps:['Récupérer les emplois du temps de tous via HyperPlanning. Pas de séchage de cours, sauf choix explicite.','Planning sur Google Sheet, créneaux de 15 minutes, qui fait quoi à chaque horaire.','Tenir compte des affinités (sans toujours faire staffer les mêmes binômes), de la fatigue et des postes.','Libérer du temps pour le Respo Média, le Trez, le Respo DD et rendre visibles les créneaux de réajustement du Screz et de la Log.','Mise à jour au plus tard la veille, staffeurs concernés prévenus systématiquement.'],
+   out:'Planning V1 partagé avec toute la liste.',
+   who:[['screz','Construit le planning et le tient à jour.'],['log','Valide les besoins de staff cuisine et matériel.'],['event','Fournit les besoins de chaque événement.'],['media','Créneaux réservés à la communication.'],['trez','Créneaux réservés à la trésorerie.'],['dd','Créneaux réservés au rapport RSE.'],['all','Signalent leurs indisponibilités.']]},
+
+  {id:'commsupports',ph:4,j:-14,src:'propose',pg:'p. 15-16, 21-22, 60-65',
+   t:'Supports de communication prêts',
+   why:'Une fois les campagnes lancées, le temps manque cruellement. La période de stage est la fenêtre idéale pour tout boucler.',
+   steps:['Charte graphique, affiches, teasers et posts de chaque événement terminés. Il ne reste que les descriptions de posts.','Planning de publication précis et groupe de test pour valider les mises en page.','Site ou application de la liste, soigné et fonctionnel.','Comptes de la mascotte créés mais non activés ni référencés avant l’amphi d’ouverture. Une page Facebook plutôt qu’un profil, pour être plusieurs connectés.','Photos de profil et descriptions Facebook des listeux. Filtre « soutien actif » appliqué par la Comm via Canva plutôt que par chacun.','Contreparties promises aux partenaires intégrées au planning de publication.'],
+   out:'Dossier Drive avec tous les visuels et le planning de publication.',
+   who:[['comm','Pilote et valide chaque support.'],['media','Comptes, posts, stories, descriptions.'],['event','Transmet titres et infos des événements.'],['vpe','Transmet les contreparties promises aux marques.'],['dem','Rappelle les contreparties exigées par les marques.'],['vtrez','Peut proposer un site avec commande hotline (idée testée l’an dernier).'],['all','Envoient photo de profil et description.']]},
+
+  {id:'decofab',ph:4,j:-14,src:'repere',pg:'p. 70-71',
+   t:'Fabrication des décos lancée',
+   why:'Le guide demande de commencer au moins deux semaines avant les campagnes, sinon les nuits déjà courtes seront écourtées.',
+   steps:['Lister les décos de chaque événement (thème de liste, thème d’événement, menus, poubelles, cadres photo…) et répartir la fabrication.','Deux à trois heures par personne suffisent si une vingtaine de personnes se mobilisent. Prévoir du matériel pour beaucoup de monde.','Fiche déco très détaillée si le Respo Déco est absent.','Choisir où installer et stocker, idéalement dans une seule chambre.'],
+   out:'Décos de chaque événement terminées avant J−1, ou reste à faire planifié.',
+   who:[['deco','Dirige les séances de fabrication.'],['screz','Place les séances dans le planning.'],['event','Valide la cohérence avec les événements.'],['log','Gère le stockage.'],['all','Fabriquent les décos.']]},
+
+  {id:'treso',ph:4,j:-14,src:'propose',pg:'p. 34, 76-77',
+   t:'Trésorerie et suivi des achats prêts',
+   why:'Pendant le mois des campagnes, les dépenses augmentent fortement. Le Trez doit pouvoir payer vite et tout tracer pour le bilan carbone.',
+   steps:['Demander une hausse temporaire du plafond de la carte, autour de 6 000 à 7 000 €.','Provisionner le compte, zéro découvert.','Préparer les sheets Excel d’achats (aliments, matériels, factures) dans un format que le Respo DD peut exploiter.','Rappeler à tous le processus facture : demander avant de payer, au nom de la liste, photo immédiate.','Alléger les staffs du Trez : entrées, quantités, prestataires et imprévus l’occupent déjà.'],
+   out:'Plafond relevé, sheets d’achats partagés avec Log et DD.',
+   who:[['trez','Pilote la trésorerie et les sheets.'],['vtrez','Remplit et vérifie les sheets avec lui.'],['dd','Valide la structure des sheets.'],['log','Renseigne les achats alimentaires et le matériel.'],['screz','Allège les staffs du Trez.'],['prez','Droit de regard sur les comptes.']]},
+
+  {id:'progfinal',ph:4,j:-14,src:'propose',pg:'p. 25-26, 54',
+   t:'Programme électoral final',
+   why:'Le programme sera publié et l’adversaire cherchera ses failles. Il doit être clair, chiffré et tenable.',
+   steps:['Relecture finale par le bureau, des Gvieux et les associations concernées.','Vérifier le chiffrage et la faisabilité de chaque mesure avec le Trez.','Préparer les questions pièges et les réponses.','Publication au moment fixé par les CE.'],
+   out:'PDF final prêt à publier.',
+   who:[['prez','Valide et défendra chaque mesure.'],['vpi','Finalise avec lui.'],['trez','Chiffre les mesures.'],['comm','Met en forme le document.'],['all','Posent des questions pièges.']]},
+
+  {id:'film',ph:4,j:-10,src:'propose',crit:1,pg:'p. 15-16',
+   t:'Film de liste terminé',
+   why:'Le film est diffusé à l’amphi de lancement. Il doit être monté, sous-titré et testé bien avant.',
+   steps:['Tournage terminé au plus tard à J−21, vêtements de liste reçus. Photos de liste prises le même jour.','Montage, sous-titres et version projetable testée : le son des amphis est souvent médiocre.','Fichier final verrouillé, plus une copie de secours.'],
+   out:'Film final sous-titré, avec copie de secours.',
+   who:[['comm','Pilote tournage et montage.'],['media','Acting, réal et montage.'],['prez','Valide la version finale.'],['screz','Planifie les créneaux de tournage.'],['all','Acteurs.']]},
+
+  {id:'logready',ph:4,j:-7,src:'propose',crit:1,pg:'p. 72-73',
+   t:'Logistique prête',
+   why:'La logistique est ce qui peut tout faire foirer. Tout doit être en place avant d’entrer dans des journées de quelques heures de sommeil.',
+   steps:['Au moins deux grands frigos d’occasion pour les produits frais et les plats cuisinés.','Chambres cuisines équipées du matériel de chaque recette, avec un lieu clair où regrouper la nourriture.','Système de hotline défini : c’est le point sensible des campagnes.','Trois poubelles de tri par chambre, assiette témoin gardée trois jours pour chaque repas, couverts, assiettes (celles du Foyer sont empruntables), sopalin.','Courses faites en avance, jamais à la dernière minute. Fiche récap des achats hors nourriture.','Veille du lancement : nourriture du goûter prête et au bon endroit.'],
+   out:'Check-list logistique cochée.',
+   who:[['log','Pilote la préparation et vérifie chaque point.'],['screz','Définit avec lui rangement du matériel et déplacements.'],['trez','Fait les courses et gère les factures.'],['event','Vérifie le matériel de chaque événement avec la Log.'],['dd','Récupère les données d’achats.']]},
+
+  {id:'briefing',ph:4,j:-2,src:'propose',crit:1,pg:'p. 48-49',
+   t:'Briefing général avant les campagnes',
+   why:'C’est l’un des derniers moments où toute la liste est réunie avant les campagnes. Tous les respos y ont leur mot à dire.',
+   steps:['Le Prez rappelle règles de sécurité, règlement des campagnes et secret jusqu’à l’amphi.','Screz et Log détaillent l’organisation : planning, stockage, déplacements, hotlines.','Règles de communication : les 23 numéros dans son téléphone avec numéro de chambre, sonnerie active même la nuit, portes de chambre ouvertes, batterie externe. Message individuel par appel, info générale par groupe.','Rituel du matin : briefing du Respo Event, ou message récapitulatif détaillé.','Trez, DD et Comm présentent leurs règles : factures et paiements, rapport RSE, planning de publication.'],
+   out:'Tout le monde a son planning, ses contacts et les règles.',
+   who:[['prez','Anime le briefing, rappelle sécurité et règlement.'],['screz','Présente planning et organisation.'],['log','Présente matériel, nourriture, hotlines.'],['event','Présente les événements et le briefing du matin.'],['trez','Rappelle le processus factures et paiements.'],['dd','Rappelle les règles du rapport RSE.'],['comm','Rappelle planning de publication et comptes mascotte.'],['vpi','Observe la fatigue et l’état d’esprit.'],['all','Posent leurs questions.']]},
+
+  /* ---------- Campagnes ---------- */
+  {id:'reveal',ph:5,j:0,src:'propose',crit:1,pg:'p. 21-22, 73',
+   t:'Amphi de lancement et goûter de lancement',
+   why:'Le secret prend fin à l’amphi de lancement. Les comptes de la mascotte ne s’activent qu’après l’amphi d’ouverture.',
+   steps:['Projection du film et présentation de la liste.','Activation des comptes de la mascotte et première publication selon le planning.','Goûter de lancement : nourriture déjà prête et placée la veille.','Le Respo DD démarre le recensement des consommations.'],
+   out:'Campagnes lancées, comptes activés.',
+   who:[['prez','Image de la liste : motivé et souriant.'],['comm','Active les comptes et publie.'],['media','Posts et stories.'],['log','Goûter de lancement.'],['screz','Pilote le planning en direct.'],['vpe','Réceptionne les dons, suit la com demandée aux marques.'],['dd','Démarre le recensement.'],['vpi','Veille sur le moral et la fatigue.'],['all','Respectent le fair-play et le règlement.']]},
+
+  {id:'campagnes',ph:5,j:0,je:9,src:'propose',crit:1,pg:'p. 26, 45-50, 64',
+   t:'Les dix jours de campagne',
+   why:'Dix jours d’événements, avec beaucoup de staff et une intensité bien supérieure aux audits. La liste qui ne compte pas ses heures marque les esprits.',
+   steps:['Briefing quotidien par le Respo Event. Planning réajusté au plus tard la veille, staffeurs prévenus à chaque changement.','Packs bouffe préparés au moins 24 h avant le staff correspondant, déchets triés, assiettes témoin gardées.','Publications aux horaires prévus, hotlines via la mascotte, retours aux marques.','Soirée dansante : l’événement le plus stressant (alcool, 400 personnes), à connaître sur le bout des doigts.','Féliciter la liste après chaque événement. Chacun joignable 24 h sur 24.'],
+   out:'Tous les événements tenus, comptes à jour chaque jour.',
+   who:[['prez','Image de la liste, vigilance sécurité, motive.'],['screz','Plannings en continu, joignable 24 h sur 24.'],['log','Packs bouffe, matériel, courses, déchets.'],['event','Connaît chaque événement, répond aux staffeurs.'],['vpe','Réceptionne les dons et suit les partenariats.'],['trez','Entrées, achats, paiements, factures numérisées.'],['comm','Publications et affichage selon le planning.'],['media','Posts, stories, descriptions.'],['dd','Recensement continu des achats.'],['deco','Installation, rangement, stockage.'],['vpi','Écoute, remplace au besoin, veille au Prez.'],['all','Staff sans sécher, sommeil et fair-play.']]},
+
+  {id:'debatprep',ph:5,j:2,src:'propose',pg:'p. 26-27, 53-54',
+   t:'Analyse du programme adverse et préparation du débat',
+   why:'Le débat des Prez se prépare pendant les campagnes : la liste adverse publie son programme après le reveal et le Prez doit l’éplucher.',
+   steps:['Repérer les points bancals du programme adverse.','Le Prez n’a le droit de poser que 3 questions à son adversaire : les choisir pour montrer les fragilités sans paraître arrogant ni agressif.','Regarder d’anciens débats (certains sont en ligne sur YouTube) et demander l’aide d’un G2.','Garder des heures de sommeil pour le Prez avant le débat : le bureau prend le relais.'],
+   out:'Trois questions, réponses aux attaques probables, Prez reposé.',
+   who:[['prez','Prépare et mène le débat.'],['vpi','Prépare avec lui et veille à son repos.'],['screz','Protège ses créneaux de sommeil dans le planning.'],['all','Posent des questions pièges.']]},
+
+  {id:'fin',ph:5,j:9,src:'propose',pg:'p. 27',
+   t:'Débat des Prez et dernière soirée',
+   why:'La fin des campagnes enchaîne débat des Prez et soirée finale. Ordre et date exacts sont à confirmer avec les CE.',
+   steps:['Débat des Prez : arriver préparé, avec des questions qui soulèvent les doutes, jamais pour humilier l’autre liste.','Rester sobre et sérieux sur le dernier événement, soirée dansante ou torcho.','Débrief rapide et remerciements à toute la liste.'],
+   out:'Débat tenu, liste remerciée.',
+   who:[['prez','Défend le programme face à l’adversaire.'],['vpi','Soutient le Prez, veille à la fatigue.'],['screz','Gère le planning de la dernière soirée.'],['comm','Publie le débat et remercie.'],['all','Soutiennent leur Prez.']]},
+
+  {id:'auditfinal',ph:5,j:10,src:'propose',crit:1,pg:'p. 30-31, 76-77',
+   t:'Audits de fin de campagne : Trez et Respo DD',
+   why:'Seuls le Trez et le Respo DD passent ces audits. Ils montrent si l’on sait tenir les comptes d’une grosse association. Date et format fixés par les CE.',
+   steps:['Trez : comptes à jour, pièces classées, aucune pièce manquante. Organisez-vous avec le Screz pour avoir moins de staffs et éviter la nuit blanche.','Respo DD : rapport RSE avec bilan carbone et audit noté. Recenser aliments (quantités, empreinte), biens matériels et services.','Le rapport suit les règles du CE : un non-respect peut entraîner des malus sur les votes finaux.'],
+   out:'Comptes et rapport RSE rendus aux CE.',
+   who:[['trez','Présente les comptes et pièces justificatives.'],['dd','Rédige et présente le rapport RSE.'],['vtrez','Aide au classement des pièces.'],['log','Fournit les sheets d’achats.'],['screz','Dégage du temps pour Trez et DD.'],['prez','Droit de regard sur les comptes.']]}
+  ];
+
+  /* ================= Utilitaires ================= */
+  var MS = 86400000, DEFAULT_J = '2027-03-01';
+  function $(id){ return document.getElementById(id); }
+  function esc(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+      return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];
+    });
+  }
+  function iso(s){ return new Date(s + 'T12:00:00Z'); }
+  function add(d, n){ return new Date(d.getTime() + n * MS); }
+  var now = new Date();
+  var today = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate(), 12));
+  function wd(d){ return d.toLocaleDateString('fr-FR',{weekday:'short',timeZone:'UTC'}).replace('.',''); }
+  function mon(d){ return d.toLocaleDateString('fr-FR',{month:'short',timeZone:'UTC'}).replace('.',''); }
+  function dayN(d){ return d.getUTCDate(); }
+  function short(d){ return dayN(d) + ' ' + mon(d); }
+  function inLabel(d){
+    var n = Math.round((d - today) / MS);
+    if (n < 0) return 'passé';
+    if (n === 0) return 'aujourd’hui';
+    if (n === 1) return 'demain';
+    return 'dans ' + n + ' j';
+  }
+  function sgn(n){ return n === 0 ? 'J' : (n < 0 ? 'J−' + Math.abs(n) : 'J+' + n); }
+  function txt(html){ var d = document.createElement('div'); d.innerHTML = html; return d.textContent; }
+  function rid8(){ return Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+  function lines(s){ return String(s || '').split(/\r?\n/).map(function(x){ return x.trim(); }).filter(Boolean); }
+  function lsGet(k){ try { return localStorage.getItem(k); } catch (x) { return null; } }
+  function lsSet(k, v){ try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } catch (x) {} }
+  function fdate(ts){ return new Date(ts).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}).replace('.',''); }
+
+  /* ================= État ================= */
+  function emptyGoal(){ return {id:null, title:'', date:'', roles:[], why:'', steps:'', out:'', crit:false}; }
+  var S = {
+    db:null, user:null, uid:null, admin:false, owner:false, noDb:false, readOnly:false,
+    people:{}, rolesDoc:{}, goals:{}, checks:{},
+    perso:{notes:'', todos:[]}, persoDirty:0,
+    ready:{people:false, roles:false, goals:false, checks:false, cfg:false, perso:false},
+    tab:'frise', role:null, compact:false, mx:{todo:false, mine:false, late:false},
+    jdate:DEFAULT_J, armed:null, gf:emptyGoal(), pending:false, pressing:false
+  };
+  var D = {pids:[], claims:{}, me:null, tasks:[], byId:{}, hasPeople:false};
+  var jD = iso(DEFAULT_J);
+  /* Présent seulement dans la version hébergée hors Claude (connexion Google facultative, base Firebase). */
+  var AUTH = window.JALONS_AUTH || null;
+  var SEED = [['Clément',['prez']],['Ewen',['trez']],['Matthias',['screz']],['Pierre',['vtrez']],['Quentin',['vpe','event']],['Raphael',['vpi']],['Jules',['comm']],['Jeremy',['log']],['Joan',['dd']]];
+  function noDbMsg(){ return AUTH ? 'La base partagée n’est pas joignable : vérifie la configuration Firebase en haut du fichier index.html.' : 'Le suivi partagé n’est disponible que lorsque la page est ouverte dans claude.ai, connecté.'; }
+
+  /* ---------- Rôles, personnes ---------- */
+  function allRoles(){
+    var custom = Object.keys(S.rolesDoc).filter(function(id){ return S.rolesDoc[id] && S.rolesDoc[id].custom; })
+      .sort(function(a, b){ return (S.rolesDoc[a].ord || 0) - (S.rolesDoc[b].ord || 0); });
+    return DEF_ORDER.concat(custom);
+  }
+  function isCustom(id){ return !!(S.rolesDoc[id] && S.rolesDoc[id].custom); }
+  function roleKnown(id){ return id === 'all' || !!DEF[id] || isCustom(id); }
+  function roleLabel(id){
+    if (id === 'all') return 'Toute la liste';
+    var d = S.rolesDoc[id];
+    if (d && d.label) return d.label;
+    return DEF[id] || null;
+  }
+  function sortedPids(){
+    return Object.keys(S.people).sort(function(a, b){
+      var A = S.people[a], B = S.people[b];
+      return ((A.ord || 0) - (B.ord || 0)) || String(A.name).localeCompare(String(B.name), 'fr');
+    });
+  }
+  function pname(p){ return (S.people[p] && S.people[p].name) || '?'; }
+  function init(p){ return String(pname(p)).charAt(0).toUpperCase() || '?'; }
+  function proles(p){ return ((S.people[p] && S.people[p].roles) || []).filter(roleKnown); }
+  function holders(rid){ return D.pids.filter(function(p){ return ((S.people[p].roles) || []).indexOf(rid) > -1; }); }
+
+  /* ---------- Dates ---------- */
+  function phaseOf(s){
+    if (s < iso('2026-11-10')) return 1;
+    if (s <= iso('2026-11-18')) return 2;
+    if (s < add(jD, -28)) return 3;
+    if (s < jD) return 4;
+    return 5;
+  }
+  function resolve(t){
+    var s = t.d ? iso(t.d) : add(jD, t.j);
+    var e = null;
+    if (t.de) e = iso(t.de); else if (typeof t.je === 'number') e = add(jD, t.je);
+    return {s:s, e:e};
+  }
+
+  /* ---------- Tâches (jalons du guide + objectifs ajoutés) ---------- */
+  function goalTask(gid, g){
+    var roles = (g.roles || []).filter(roleKnown);
+    return {
+      id:'g_' + gid, gid:gid, custom:true, d:g.date, src:'add', crit:g.crit ? 1 : 0,
+      t:esc(g.title || 'Objectif'), why:esc(g.why || ''),
+      steps:(g.steps || []).map(esc), out:esc(g.out || ''),
+      who:roles.length ? [[roles, 'Porte cet objectif.']] : []
+    };
+  }
+  function buildTasks(){
+    var list = J.slice();
+    Object.keys(S.goals).forEach(function(gid){
+      var g = S.goals[gid];
+      if (g && /^\d{4}-\d\d-\d\d$/.test(g.date || '')) list.push(goalTask(gid, g));
+    });
+    list.forEach(function(t){
+      var r = resolve(t); t.s = r.s; t.e = r.e;
+      if (t.custom) t.ph = phaseOf(t.s);
+    });
+    list.sort(function(a, b){ return (a.ph - b.ph) || (a.s - b.s); });
+    return list;
+  }
+  function rolesOf(w){ return Array.isArray(w[0]) ? w[0] : [w[0]]; }
+  function has(t, r){ return t.who.some(function(w){ return rolesOf(w).indexOf(r) > -1; }); }
+  function leadAll(t){ return t.who.length > 0 && rolesOf(t.who[0]).indexOf('all') > -1; }
+  function concerned(t){
+    if (leadAll(t)) return D.pids.slice();
+    var rs = {};
+    t.who.forEach(function(w){ rolesOf(w).forEach(function(r){ if (r !== 'all') rs[r] = 1; }); });
+    return D.pids.filter(function(p){ return ((S.people[p].roles) || []).some(function(r){ return rs[r]; }); });
+  }
+  function myDone(jid){
+    var c = S.uid && S.checks[S.uid];
+    return !!(c && c.done && c.done[jid] > 0);
+  }
+  function doneTs(p, jid){
+    var us = D.claims[p];
+    if (!us) return 0;
+    for (var i = 0; i < us.length; i++){
+      var c = S.checks[us[i]];
+      var v = c && c.done && c.done[jid];
+      if (v > 0) return v;
+    }
+    return 0;
+  }
+  function statOf(t){
+    var ps = concerned(t);
+    var dn = ps.filter(function(p){ return doneTs(p, t.id); });
+    var end = t.e || t.s;
+    return {
+      ps:ps, done:dn, orphan:D.hasPeople && !ps.length,
+      complete:ps.length > 0 && dn.length === ps.length,
+      late:ps.length > 0 && dn.length < ps.length && end < today
+    };
+  }
+  function isMine(t){ return !!D.me && t.st.ps.indexOf(D.me) > -1; }
+
+  function derive(){
+    jD = iso(S.jdate);
+    D.pids = sortedPids();
+    D.hasPeople = D.pids.length > 0;
+    D.claims = {};
+    Object.keys(S.checks).forEach(function(u){
+      var c = S.checks[u];
+      if (c && c.pid && S.people[c.pid]) (D.claims[c.pid] = D.claims[c.pid] || []).push(u);
+    });
+    var mine = S.uid && S.checks[S.uid];
+    D.me = (mine && mine.pid && S.people[mine.pid]) ? mine.pid : null;
+    D.tasks = buildTasks();
+    D.byId = {};
+    D.tasks.forEach(function(t){ t.st = statOf(t); D.byId[t.id] = t; });
+  }
+
+  /* ================= Écriture ================= */
+  var Q = {};
+  function W(path, op, data){
+    return new Promise(function(res, rej){
+      if (!S.db) { rej({code:'unavailable'}); return; }
+      var q = Q[path] || (Q[path] = {run:false, items:[]});
+      var last = q.items[q.items.length - 1];
+      if (op === 'set' && last && last.op === 'set' && !last.started){
+        last.data = data; last.cbs.push({res:res, rej:rej});
+      } else {
+        q.items.push({op:op, data:data, started:false, retried:false, cbs:[{res:res, rej:rej}]});
+      }
+      pump(path);
+    });
+  }
+  function pump(path){
+    var q = Q[path];
+    if (q.run || !q.items.length) return;
+    var it = q.items[0];
+    q.run = true; it.started = true;
+    new Promise(function(r){
+      var ref = S.db.doc(path);
+      r(it.op === 'delete' ? ref.delete() : ref[it.op](it.data));
+    }).then(function(){
+      q.items.shift(); q.run = false;
+      it.cbs.forEach(function(c){ c.res(); });
+      pump(path);
+    }, function(e){
+      if (e && e.code === 'unavailable' && !it.retried){
+        it.retried = true; q.run = false;
+        setTimeout(function(){ pump(path); }, 400 + Math.random() * 400);
+        return;
+      }
+      q.items.shift(); q.run = false;
+      it.cbs.forEach(function(c){ c.rej(e); });
+      pump(path);
+    });
+  }
+  var toastTimer = null;
+  function toast(m){
+    var t = $('toast');
+    t.textContent = m; t.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ t.hidden = true; }, 4200);
+  }
+  function fail(e){
+    var c = e && e.code, m = 'Enregistrement impossible pour l’instant.';
+    if (c === 'invalid_argument') m = AUTH ? 'Action refusée : modifier l’équipe, les rôles ou les objectifs demande la connexion admin (bouton Google, à gauche).' : 'Action refusée : tes droits sur cette page ne le permettent pas (Contributeur pour cocher, Éditeur pour modifier l’équipe).';
+    else if (c === 'quota_exceeded') m = 'La base de la page est pleine.';
+    else if (c === 'resource_exhausted') m = AUTH ? 'Le quota gratuit de Firebase est atteint pour aujourd’hui : réessaie demain.' : 'Trop d’actions d’un coup, réessaie dans un instant.';
+    else if (c === 'revoked') m = 'Ton accès à la page a été retiré.';
+    toast(m);
+  }
+  function guard(p){ return p.catch(fail); }
+
+  /* ================= Rendu : briques ================= */
+  function srcTag(s){
+    if (s === 'guide') return '<span class="tag guide">Date du guide</span>';
+    if (s === 'repere') return '<span class="tag page">Repère du guide</span>';
+    if (s === 'add') return '<span class="tag add">Ajouté</span>';
+    return '<span class="tag propose">Date proposée</span>';
+  }
+  function chipHtml(r, lead){
+    if (r === 'all') return '<span class="chip all"><b>Toute la liste</b></span>';
+    var lbl = roleLabel(r);
+    if (!lbl) return '';
+    var hs = holders(r);
+    if (!hs.length) return '<span class="chip open' + (lead ? ' lead' : '') + '"><b>' + esc(lbl) + '</b></span>';
+    return hs.map(function(p){
+      return '<span class="chip' + (lead ? ' lead' : '') + '"><i class="av" aria-hidden="true">' + esc(init(p)) + '</i><b>' + esc(pname(p)) + '</b><small>' + esc(lbl) + '</small></span>';
+    }).join('');
+  }
+  function statHtml(t){
+    if (!S.db || !D.hasPeople) return '';
+    var st = t.st;
+    if (st.orphan){
+      return '<div class="stat"><span class="orph">Sans titulaire</span><span class="sum">Personne ne porte encore ce rôle : attribue-le dans l’onglet Équipe.</span></div>';
+    }
+    if (!st.ps.length) return '';
+    var dots = st.ps.map(function(p){
+      var ts = doneTs(p, t.id);
+      var cls = ts ? ' done' : (st.late ? ' late' : '');
+      var tip = pname(p) + (ts ? ' · fait le ' + fdate(ts) : ' · pas encore fait');
+      return '<span class="pd' + cls + '" title="' + esc(tip) + '">' + esc(init(p)) + '</span>';
+    }).join('');
+    var rest = st.ps.filter(function(p){ return !doneTs(p, t.id); }).map(pname);
+    var sum = st.done.length + '/' + st.ps.length + ' fait' + (rest.length ? ' · reste : ' + rest.join(', ') : '');
+    var btn = '';
+    if (S.uid && isMine(t)){
+      var md = myDone(t.id);
+      btn = '<button type="button" class="btn sm' + (md ? '' : ' ok') + '" data-act="tick" data-id="' + esc(t.id) + '">' + (md ? 'Annuler ma coche' : 'Marquer fait') + '</button>';
+    }
+    return '<div class="stat"><div class="dots">' + dots + '</div><span class="sum">' + esc(sum) + '</span>' + btn + '</div>';
+  }
+  function filterRoles(){
+    if (S.role === '@me') return D.me ? proles(D.me) : [];
+    return S.role ? [S.role] : [];
+  }
+  function jalonHtml(t, isNext){
+    var past = (t.e || t.s) < today;
+    var rel = (typeof t.j === 'number');
+    var date = '<div class="date"><div class="wd">' + wd(t.s) + '</div><div class="day">' + dayN(t.s) + '</div><div class="mon">' + mon(t.s) + '</div>';
+    if (t.e) date += '<div class="end">→ ' + dayN(t.e) + ' ' + mon(t.e) + '</div>';
+    if (rel) date += '<div class="jc">' + sgn(t.j) + (typeof t.je === 'number' ? ' → ' + sgn(t.je) : '') + '</div>';
+    date += '</div>';
+    var tags = '<div class="tags">' + (t.crit ? '<span class="tag crit">Critique</span>' : '') + (isNext ? '<span class="tag next">Prochaine échéance</span>' : '') +
+      srcTag(t.src) + (t.pg ? '<span class="tag page">' + t.pg + '</span>' : '') + '</div>';
+    var fr = filterRoles();
+    var who = t.who.length ? '<div class="who">' + t.who.map(function(w, i){
+      var rr = rolesOf(w);
+      var mine = fr.length && rr.some(function(x){ return fr.indexOf(x) > -1; });
+      return '<div class="row' + (i === 0 ? ' lead' : '') + (mine ? ' mine' : '') + '"><div class="c">' + rr.map(function(x){ return chipHtml(x, i === 0); }).join('') + '</div><div class="t">' + w[1] + '</div></div>';
+    }).join('') + '</div>' : '';
+    return '<article class="jalon' + (past ? ' past' : '') + (t.st.complete ? ' complete' : '') + '" id="j-' + esc(t.id) + '">' + date +
+      '<div class="body"><h3>' + t.t + '</h3>' + tags +
+      (t.why ? '<p class="why">' + t.why + '</p>' : '') +
+      (t.steps.length ? '<ul class="steps">' + t.steps.map(function(s){ return '<li>' + s + '</li>'; }).join('') + '</ul>' : '') +
+      (t.out ? '<p class="out"><b>Livrable</b>' + t.out + '</p>' : '') +
+      statHtml(t) + who + '</div></article>';
+  }
+
+  /* ================= Rendu : Frise ================= */
+  function renderFilters(){
+    var r = S.role || '';
+    function pressed(v){ return String(r === v); }
+    var h = '<button type="button" class="rf all" data-act="filter" data-role="" aria-pressed="' + pressed('') + '"><b>Tous les rôles</b></button>';
+    if (D.me) h += '<button type="button" class="rf all" data-act="filter" data-role="@me" aria-pressed="' + pressed('@me') + '"><b>Mes échéances</b></button>';
+    allRoles().forEach(function(rid){
+      var hs = holders(rid), lbl = roleLabel(rid);
+      if (hs.length){
+        var nm = pname(hs[0]) + (hs.length > 1 ? ' +' + (hs.length - 1) : '');
+        h += '<button type="button" class="rf" data-act="filter" data-role="' + esc(rid) + '" aria-pressed="' + pressed(rid) + '"><i class="av" aria-hidden="true">' + esc(init(hs[0])) + '</i><span class="n">' + esc(nm) + '</span><small>' + esc(lbl) + '</small></button>';
+      } else {
+        h += '<button type="button" class="rf open" data-role="' + esc(rid) + '" data-act="filter" aria-pressed="' + pressed(rid) + '"><span class="n">' + esc(lbl) + '</span></button>';
+      }
+    });
+    $('filters').innerHTML = h;
+  }
+  function renderFrise(){
+    if (S.role && S.role !== '@me' && (S.ready.roles || S.noDb) && !roleKnown(S.role)) S.role = null;
+    if (S.role === '@me' && !D.me && (S.ready.checks || S.noDb)) S.role = null;
+    var fr = filterRoles();
+    var list = D.tasks;
+    var shown = S.role ? list.filter(function(t){ return S.role === '@me' ? isMine(t) : has(t, S.role); }) : list;
+
+    var upcoming = shown.filter(function(t){ return (t.e || t.s) >= today && !t.st.complete; }).sort(function(a, b){ return a.s - b.s; });
+    var nextItem = upcoming[0] || null;
+
+    var html = '';
+    [1,2,3,4,5].forEach(function(p){
+      var items = shown.filter(function(t){ return t.ph === p; });
+      if (!items.length) return;
+      html += '<section class="phase"><header><h2>' + PH[p].t + '</h2><span class="rg">' + PH[p].rg + '</span><p>' + PH[p].s + '</p></header>' +
+        items.map(function(t){ return jalonHtml(t, nextItem && nextItem.id === t.id); }).join('') + '</section>';
+    });
+    if (!shown.length) html = '<p class="panel">Aucune échéance pour ce filtre.</p>';
+    $('timeline').innerHTML = html;
+    $('main').classList.toggle('filtering', fr.length > 0);
+    $('main').classList.toggle('compact', S.compact);
+
+    $('next').innerHTML = upcoming.length ? upcoming.slice(0, 3).map(function(t){
+      var ref = t.s < today ? today : t.s;
+      return '<div class="nx"><div class="dd">' + dayN(t.s) + '<small>' + mon(t.s) + '</small></div><div><b>' + t.t + '</b><span class="in">' + inLabel(ref) + '</span></div></div>';
+    }).join('') : '<p style="margin:0">Plus d’échéance à venir.</p>';
+
+    var who = S.role === '@me' ? 'toi' : (S.role ? roleLabel(S.role) : '');
+    $('count').textContent = shown.length + ' échéance' + (shown.length > 1 ? 's' : '') + (S.role ? ' pour ' + who : ' au total');
+    $('homolog').innerHTML = (S.role && S.role !== '@me' && HOM[S.role]) ? '<p class="homolog">Ton homologue chez les Laya : <b>' + esc(HOM[S.role]) + '</b></p>' : '';
+    var tg = $('toggle');
+    tg.setAttribute('aria-pressed', String(S.compact));
+    tg.textContent = S.compact ? 'Déplier les détails' : 'Replier les détails';
+    renderFilters();
+  }
+
+  /* ================= Rendu : Suivi ================= */
+  function renderSuivi(){
+    var el = $('v-suivi');
+    if (S.noDb){ el.innerHTML = '<p class="panel">' + noDbMsg() + '</p>'; return; }
+    if (!S.ready.people || !S.ready.checks){ el.innerHTML = '<p class="panel muted">Chargement du suivi…</p>'; return; }
+    if (!D.hasPeople){
+      el.innerHTML = '<p class="panel">Aucune personne dans l’équipe pour l’instant. ' + (S.admin ? 'Ajoute-les dans l’onglet <b>Équipe</b>, puis attribue-leur des rôles.' : (AUTH ? 'L’admin doit d’abord les ajouter dans l’onglet Équipe.' : 'Un Éditeur de la page doit d’abord les ajouter dans l’onglet Équipe.')) + '</p>';
+      return;
+    }
+    var T = D.tasks;
+    var total = T.length;
+    var complete = T.filter(function(t){ return t.st.complete; }).length;
+    var late = T.filter(function(t){ return t.st.late; }).length;
+    var orph = T.filter(function(t){ return t.st.orphan; }).length;
+    var pct = total ? Math.round(100 * complete / total) : 0;
+    var h = '<div class="kpis">' +
+      '<div class="kpi"><b>' + total + '</b><span>échéances suivies</span></div>' +
+      '<div class="kpi"><b>' + complete + '</b><span>terminées par tous les concernés</span><div class="prog"><i style="width:' + pct + '%"></i></div></div>' +
+      '<div class="kpi"><b' + (late ? ' style="color:var(--accent)"' : '') + '>' + late + '</b><span>en retard</span></div>' +
+      '<div class="kpi"><b' + (orph ? ' style="color:var(--accent)"' : '') + '>' + orph + '</b><span>sans titulaire</span></div></div>';
+
+    h += '<div class="mxtools">' +
+      '<label><input type="checkbox" data-mx="todo"' + (S.mx.todo ? ' checked' : '') + '> Cacher ce qui est terminé</label>' +
+      '<label><input type="checkbox" data-mx="late"' + (S.mx.late ? ' checked' : '') + '> Seulement les retards</label>' +
+      (D.me ? '<label><input type="checkbox" data-mx="mine"' + (S.mx.mine ? ' checked' : '') + '> Seulement mes échéances</label>' : '') +
+      '</div>';
+
+    var rows = T.filter(function(t){
+      if (S.mx.todo && t.st.complete) return false;
+      if (S.mx.late && !t.st.late) return false;
+      if (S.mx.mine && D.me && !isMine(t)) return false;
+      return true;
+    });
+
+    var cols = D.pids.length + 2;
+    var th = '<th class="c1" scope="col">Échéance</th>' + D.pids.map(function(p){
+      var cnt = 0, dn = 0;
+      T.forEach(function(t){ if (t.st.ps.indexOf(p) > -1){ cnt++; if (doneTs(p, t.id)) dn++; } });
+      var rl = proles(p).map(roleLabel);
+      return '<th scope="col"><span>' + esc(pname(p)) + (p === D.me ? ' (moi)' : '') + '</span><small>' + esc(rl.slice(0, 2).join(', ') + (rl.length > 2 ? '…' : '')) + '</small><small>' + dn + '/' + cnt + '</small></th>';
+    }).join('') + '<th scope="col">Total</th>';
+
+    var body = '';
+    [1,2,3,4,5].forEach(function(p){
+      var items = rows.filter(function(t){ return t.ph === p; });
+      if (!items.length) return;
+      body += '<tr class="ph"><th colspan="' + cols + '">' + PH[p].t + ' · ' + PH[p].rg + '</th></tr>';
+      items.forEach(function(t){
+        var st = t.st, end = t.e || t.s;
+        var rest = st.ps.filter(function(q){ return !doneTs(q, t.id); }).map(pname);
+        var sub = short(t.s) + (typeof t.j === 'number' ? ' · ' + sgn(t.j) : '') + (!st.complete && rest.length ? ' · reste : ' + rest.join(', ') : '');
+        body += '<tr' + (st.complete ? ' class="done"' : '') + '><td class="c1"><button type="button" class="lnk" data-act="goto" data-id="' + esc(t.id) + '">' + t.t + '</button>' +
+          '<span class="dt' + (st.late ? ' late' : '') + '">' + esc(sub) + '</span>' + (st.orphan ? '<span class="orph">Sans titulaire</span>' : '') + '</td>';
+        D.pids.forEach(function(q){
+          if (st.ps.indexOf(q) < 0){ body += '<td class="na" aria-label="Non concerné">·</td>'; return; }
+          var ts = doneTs(q, t.id);
+          var cls = ts ? ' done' : (end < today ? ' late' : '');
+          var tip = pname(q) + (ts ? ' · fait le ' + fdate(ts) : ' · pas encore fait');
+          if (q === D.me && S.uid){
+            body += '<td><button type="button" class="mk' + cls + '" data-act="tick" data-id="' + esc(t.id) + '" aria-pressed="' + String(myDone(t.id)) + '" title="' + esc(tip) + '" aria-label="' + esc('Cocher : ' + txt(t.t)) + '">' + (ts ? '✓' : '') + '</button></td>';
+          } else {
+            body += '<td><span class="mk' + cls + '" role="img" aria-label="' + esc(tip) + '" title="' + esc(tip) + '">' + (ts ? '✓' : '') + '</span></td>';
+          }
+        });
+        body += '<td class="tot">' + st.done.length + '/' + st.ps.length + '</td></tr>';
+      });
+    });
+    if (!rows.length) body = '<tr><td colspan="' + cols + '" class="c1" style="position:static">Rien à afficher avec ces filtres.</td></tr>';
+    h += '<div class="mxwrap"><table class="mx"><thead><tr>' + th + '</tr></thead><tbody>' + body + '</tbody></table></div>';
+    h += '<p class="muted" style="font-size:.85rem;margin-top:10px">Chacun coche ses propres cases (cercle plein = fait). Une coche est visible par toute l’équipe. En rouge : date dépassée.</p>';
+    el.innerHTML = h;
+  }
+
+  /* ================= Rendu : Mon espace ================= */
+  function renderMoi(){
+    var el = $('v-moi');
+    if (S.noDb){ el.innerHTML = '<p class="panel">' + noDbMsg() + '</p>'; return; }
+    if (!S.uid){ el.innerHTML = '<p class="panel">' + (AUTH ? 'Connexion à la base impossible pour l’instant. Recharge la page.' : 'Connecte-toi à claude.ai pour retrouver ton espace personnel.') + '</p>'; return; }
+    var h = '<div class="two"><div class="stack">';
+    h += '<section class="panel">';
+    if (D.me){
+      var rl = proles(D.me).map(function(r){ return '<span class="chip"><b>' + esc(roleLabel(r)) + '</b></span>'; }).join('');
+      h += '<p class="hello">Salut ' + esc(pname(D.me)) + '</p><div class="fchips" style="margin:0 0 10px">' + (rl || '<span class="muted">Aucun rôle attribué pour l’instant.</span>') + '</div>' +
+        '<button type="button" class="btn sm' + (S.armed === 'unclaim' ? ' danger' : '') + '" data-act="unclaim" data-arm="unclaim">' + (S.armed === 'unclaim' ? 'Confirmer : mes coches seront effacées' : 'Ce n’est pas moi') + '</button>';
+    } else {
+      h += '<p class="hello">Mon espace</p><p class="muted" style="margin:0">Choisis qui tu es dans le bandeau en haut pour voir tes échéances. Les notes et ta to-do perso marchent déjà.</p>';
+    }
+    h += '</section>';
+
+    if (D.me){
+      var mine = D.tasks.filter(isMine);
+      var open = mine.filter(function(t){ return !doneTs(D.me, t.id); }).sort(function(a, b){ return a.s - b.s; });
+      var dn = mine.filter(function(t){ return doneTs(D.me, t.id); }).sort(function(a, b){ return b.s - a.s; });
+      var li = function(t){
+        var ts = doneTs(D.me, t.id), end = t.e || t.s;
+        var late = !ts && end < today;
+        return '<li class="' + (ts ? 'done' : '') + '"><button type="button" class="mk' + (ts ? ' done' : (late ? ' late' : '')) + '" data-act="tick" data-id="' + esc(t.id) + '" aria-pressed="' + String(!!ts) + '" aria-label="' + esc('Cocher : ' + txt(t.t)) + '">' + (ts ? '✓' : '') + '</button>' +
+          '<span class="d' + (late ? ' late' : '') + '">' + esc(short(t.s)) + '</span><span class="t"><button type="button" class="lnk" data-act="goto" data-id="' + esc(t.id) + '">' + t.t + '</button></span></li>';
+      };
+      h += '<section class="panel"><h2>Mes échéances (' + open.length + ' à faire)</h2>' +
+        (open.length ? '<ul class="tl">' + open.map(li).join('') + '</ul>' : '<p class="muted" style="margin:0">' + (mine.length ? 'Tout est coché. Bien joué.' : 'Aucune échéance ne te concerne : demande qu’on t’attribue un rôle.') + '</p>') +
+        (dn.length ? '<details style="margin-top:10px"><summary>Déjà faites (' + dn.length + ')</summary><ul class="tl">' + dn.map(li).join('') + '</ul></details>' : '') +
+        '</section>';
+    }
+    h += '</div><div class="stack">';
+    h += '<section class="panel"><h2>Ma to-do perso</h2><div class="inl er" style="margin-bottom:8px"><input type="text" id="todo-t" placeholder="Une chose à faire de ton côté" aria-label="Nouvelle tâche perso"><input type="date" id="todo-d" aria-label="Date (facultatif)"><button type="button" class="btn primary" data-act="todo-add" data-primary>Ajouter</button></div>';
+    var todos = S.perso.todos || [];
+    h += todos.length ? '<ul class="tl">' + todos.map(function(x){
+      var late = !x.done && x.d && iso(x.d) < today;
+      return '<li class="' + (x.done ? 'done' : '') + '"><button type="button" class="mk' + (x.done ? ' done' : (late ? ' late' : '')) + '" data-act="todo-tick" data-id="' + esc(x.id) + '" aria-pressed="' + String(!!x.done) + '" aria-label="Cocher">' + (x.done ? '✓' : '') + '</button>' +
+        '<span class="d' + (late ? ' late' : '') + '">' + (x.d ? esc(short(iso(x.d))) : '—') + '</span><span class="t">' + esc(x.t) + ' <button type="button" class="btn sm" data-act="todo-del" data-id="' + esc(x.id) + '" aria-label="Supprimer">Suppr.</button></span></li>';
+    }).join('') + '</ul>' : '<p class="muted" style="margin:0">Rien pour l’instant.</p>';
+    h += '</section>';
+    h += '<section class="panel"><h2>Mes notes</h2><textarea id="notes" rows="7" placeholder="Idées, contacts, rappels…" aria-label="Mes notes">' + esc(S.perso.notes) + '</textarea><p class="saved" id="saved" style="margin:6px 0 0"></p></section>';
+    h += '<p class="muted" style="font-size:.85rem;margin:0">' + (AUTH ? 'Cet espace est privé : les autres membres ne voient ni tes notes ni ta to-do.' : 'Cet espace est privé : personne d’autre ne voit tes notes ni ta to-do, même pas le propriétaire de la page.') + '</p>';
+    h += '</div></div>';
+    el.innerHTML = h;
+  }
+
+  /* ================= Rendu : Équipe ================= */
+  function renderEquipe(){
+    var el = $('v-equipe');
+    if (S.noDb){ el.innerHTML = '<p class="panel">' + (AUTH ? noDbMsg() : 'L’équipe se gère depuis la page ouverte dans claude.ai, connecté.') + '</p>'; return; }
+    if (!S.ready.people || !S.ready.roles || !S.ready.goals){ el.innerHTML = '<p class="panel muted">Chargement de l’équipe…</p>'; return; }
+    var ad = S.admin, dis = ad ? '' : ' disabled';
+    var roles = allRoles();
+    var h = '<div class="stack">';
+    h += '<section class="panel"><h2>Qui fait quoi</h2><p style="margin-bottom:0">' + (ad
+      ? 'Clique sur un rôle pour l’attribuer ou le retirer : une même personne peut en porter plusieurs. Le nom se modifie directement dans la case. À droite d’un rôle apparaît le nom de celui qui le porte déjà.'
+      : (AUTH ? 'Seul l’admin (connexion Google, bouton à gauche) modifie l’équipe, les rôles et les objectifs. Tu peux tout consulter ici.' : 'Seuls les Éditeurs de la page modifient l’équipe, les rôles et les objectifs. Tu peux tout consulter ici.')) + '</p></section>';
+
+    h += '<div class="pgrid">' + D.pids.map(function(p){
+      var cnt = 0, dn = 0;
+      D.tasks.forEach(function(t){ if (t.st.ps.indexOf(p) > -1){ cnt++; if (doneTs(p, t.id)) dn++; } });
+      var mine = (S.people[p].roles || []);
+      var chips = roles.map(function(rid){
+        var on = mine.indexOf(rid) > -1;
+        var others = holders(rid).filter(function(q){ return q !== p; }).map(pname);
+        return '<button type="button" class="rt' + (isCustom(rid) ? ' custom' : '') + '" data-act="p-role" data-pid="' + esc(p) + '" data-role="' + esc(rid) + '" aria-pressed="' + String(on) + '"' + dis + '>' + esc(roleLabel(rid)) + (others.length ? '<span class="ord">· ' + esc(others.join(', ')) + '</span>' : '') + '</button>';
+      }).join('');
+      var cl = D.claims[p] ? D.claims[p].length : 0;
+      var detach = (S.owner && cl) ? D.claims[p].map(function(u){ return '<button type="button" class="btn sm' + (S.armed === 'detach:' + u ? ' danger' : '') + '" data-act="detach" data-uid="' + esc(u) + '" data-arm="detach:' + esc(u) + '">' + (S.armed === 'detach:' + u ? 'Confirmer' : 'Détacher le compte') + '</button>'; }).join(' ') : '';
+      return '<div class="pcard"><div class="hd"><input type="text" data-ch="p-name" data-pid="' + esc(p) + '" value="' + esc(pname(p)) + '" aria-label="Nom"' + dis + '>' +
+        (ad ? '<button type="button" class="btn sm danger" data-act="p-del" data-pid="' + esc(p) + '" data-arm="p-del:' + esc(p) + '">' + (S.armed === 'p-del:' + p ? 'Confirmer' : 'Retirer') + '</button>' : '') + '</div>' +
+        '<div class="rts" role="group" aria-label="Rôles de ' + esc(pname(p)) + '">' + chips + '</div>' +
+        '<small class="muted">' + cnt + ' échéance' + (cnt > 1 ? 's' : '') + ' · ' + dn + ' cochée' + (dn > 1 ? 's' : '') + (cl ? ' · compte lié' : ' · pas encore connecté') + '</small>' + detach + '</div>';
+    }).join('') + '</div>';
+    if (!D.hasPeople) h += '<p class="panel muted">Personne dans l’équipe pour l’instant.</p>';
+
+    if (ad){
+      h += '<section class="panel"><h3>Ajouter une personne</h3><div class="inl er"><input type="text" id="p-new" placeholder="Prénom" aria-label="Prénom de la nouvelle personne"><button type="button" class="btn primary" data-act="p-add" data-primary>Ajouter la personne</button></div></section>';
+    }
+
+    /* Rôles */
+    h += '<section class="panel"><h2>Rôles et pôles</h2><p>Renomme un rôle dans sa case. Les rôles ajoutés (pointillés) peuvent être supprimés ; ceux du guide non, car des échéances s’y rattachent.</p><div class="rlist">' + roles.map(function(rid){
+      var hs = holders(rid).map(pname);
+      return '<div class="it"><input type="text" style="flex:1;min-width:0" data-ch="r-name" data-rid="' + esc(rid) + '" value="' + esc(roleLabel(rid)) + '" aria-label="Nom du rôle"' + dis + '>' +
+        (isCustom(rid) && ad ? '<button type="button" class="btn sm danger" data-act="r-del" data-rid="' + esc(rid) + '" data-arm="r-del:' + esc(rid) + '">' + (S.armed === 'r-del:' + rid ? 'Confirmer' : 'Suppr.') + '</button>' : '') +
+        '<small class="muted" style="white-space:nowrap">' + (hs.length ? esc(hs.join(', ')) : 'libre') + '</small></div>';
+    }).join('') + '</div>';
+    if (ad){
+      h += '<h3 style="margin-top:16px">Ajouter un rôle</h3><div class="inl er"><input type="text" id="r-new" placeholder="Ex. Respo Sécurité" aria-label="Nom du nouveau rôle"><select id="r-holder" aria-label="Attribuer à" style="width:auto;flex:0 1 14rem"><option value="">Attribuer plus tard</option>' +
+        D.pids.map(function(p){ return '<option value="' + esc(p) + '">' + esc(pname(p)) + '</option>'; }).join('') +
+        '</select><button type="button" class="btn primary" data-act="r-add" data-primary>Ajouter le rôle</button></div>';
+    }
+    h += '</section>';
+
+    /* Objectifs ajoutés */
+    var gids = Object.keys(S.goals).sort(function(a, b){ return String(S.goals[a].date).localeCompare(String(S.goals[b].date)); });
+    h += '<section class="panel"><h2>Objectifs ajoutés par l’équipe</h2><p>Ils s’ajoutent à la frise et au tableau de suivi, avec les rôles que tu choisis et leur date limite.</p>';
+    h += gids.length ? '<div class="glist">' + gids.map(function(gid){
+      var g = S.goals[gid];
+      var rl = (g.roles || []).filter(roleKnown).map(roleLabel);
+      var d = /^\d{4}-\d\d-\d\d$/.test(g.date || '') ? short(iso(g.date)) + ' ' + iso(g.date).getUTCFullYear() : '—';
+      return '<div class="gi"><span class="d">' + esc(d) + '</span><b>' + esc(g.title) + (g.crit ? ' <span class="tag crit">Critique</span>' : '') + '</b>' +
+        '<span class="r">' + (rl.length ? esc(rl.join(', ')) : 'Aucun rôle (à réattribuer)') + '</span>' +
+        (ad ? '<div class="acts"><button type="button" class="btn sm" data-act="g-edit" data-gid="' + esc(gid) + '">Modifier</button><button type="button" class="btn sm danger" data-act="g-del" data-gid="' + esc(gid) + '" data-arm="g-del:' + esc(gid) + '">' + (S.armed === 'g-del:' + gid ? 'Confirmer' : 'Supprimer') + '</button></div>' : '') + '</div>';
+    }).join('') + '</div>' : '<p class="muted">Aucun objectif ajouté pour l’instant.</p>';
+    if (ad){
+      var f = S.gf;
+      h += '<h3 style="margin-top:18px" id="gform">' + (f.id ? 'Modifier l’objectif' : 'Nouvel objectif') + '</h3><div class="form">' +
+        '<div class="fgrid"><label class="fld"><span>Titre</span><input type="text" data-f="title" value="' + esc(f.title) + '" placeholder="Ex. Valider le plan de sécurité du WEI"></label>' +
+        '<label class="fld"><span>Date limite</span><input type="date" data-f="date" value="' + esc(f.date) + '"></label></div>' +
+        '<div class="fld"><span>Rôles concernés</span><div class="rts" role="group" aria-label="Rôles concernés">' + ['all'].concat(roles).map(function(rid){
+          return '<button type="button" class="rt' + (isCustom(rid) ? ' custom' : '') + '" data-act="g-role" data-role="' + esc(rid) + '" aria-pressed="' + String(f.roles.indexOf(rid) > -1) + '">' + esc(roleLabel(rid)) + '</button>';
+        }).join('') + '</div></div>' +
+        '<label class="fld"><span>Pourquoi, contexte</span><textarea data-f="why" rows="3">' + esc(f.why) + '</textarea></label>' +
+        '<label class="fld"><span>Étapes (une par ligne)</span><textarea data-f="steps" rows="4">' + esc(f.steps) + '</textarea></label>' +
+        '<label class="fld"><span>Livrable attendu</span><input type="text" data-f="out" value="' + esc(f.out) + '"></label>' +
+        '<label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input type="checkbox" data-f="crit"' + (f.crit ? ' checked' : '') + '> Objectif critique</label>' +
+        '<div class="inl"><button type="button" class="btn primary" data-act="g-save">' + (f.id ? 'Enregistrer les changements' : 'Ajouter l’objectif') + '</button>' + (f.id ? '<button type="button" class="btn" data-act="g-cancel">Annuler</button>' : '') + '</div></div>';
+    }
+    h += '</section></div>';
+    el.innerHTML = h;
+  }
+
+  /* ================= Rendu : global ================= */
+  function renderBanner(){
+    var h = '';
+    if (S.noDb){
+      h = '<div class="banner"><p>' + (AUTH ? noDbMsg() : 'Le suivi partagé n’est pas disponible dans cette vue : ouvre la page dans claude.ai, connecté.') + ' La frise reste consultable, mais rien ne s’enregistre.</p></div>';
+    } else if (S.db && !S.uid && S.ready.people){
+      h = '<div class="banner"><p>' + (AUTH ? 'Connexion à la base impossible : dans Firebase, active l’authentification anonyme (Authentication, onglet Sign-in method).' : 'Connecte-toi à claude.ai pour cocher tes échéances et retrouver ton espace personnel.') + '</p></div>';
+    } else if (S.db && S.uid && S.ready.people && S.ready.checks){
+      if (D.hasPeople && !D.me){
+        h = '<div class="banner"><p><b>Qui es-tu ?</b> Choisis ton nom pour cocher tes échéances et retrouver ton espace.</p><div class="inl"><select id="claim-sel" aria-label="Ton nom" style="width:auto;flex:1 1 12rem">' +
+          D.pids.map(function(p){ var rl = proles(p).map(roleLabel).join(', '); return '<option value="' + esc(p) + '">' + esc(pname(p)) + (rl ? ' · ' + esc(rl) : '') + '</option>'; }).join('') +
+          '</select><button type="button" class="btn primary" data-act="claim">C’est moi</button></div></div>';
+      } else if (!D.hasPeople){
+        h = '<div class="banner"><p>L’équipe est vide. ' + (S.admin ? 'Ajoute les personnes dans l’onglet Équipe' + (AUTH ? ' ou pré-remplis l’équipe actuelle.' : '.') : (AUTH ? 'L’admin doit l’ajouter dans l’onglet Équipe.' : 'Un Éditeur de la page doit l’ajouter dans l’onglet Équipe.')) + '</p>' +
+          (S.admin ? '<div class="inl">' + (AUTH ? '<button type="button" class="btn primary" data-act="seed">Pré-remplir l’équipe</button>' : '') + '<button type="button" class="btn" data-act="tab" data-tab="equipe">Ouvrir l’Équipe</button></div>' : '') + '</div>';
+      }
+    }
+    if (S.readOnly){
+      h += '<div class="banner"><p>' + (AUTH ? 'Tes coches ne s’enregistrent pas : connexion perdue ou règles Firestore pas encore publiées. Recharge la page.' : 'Tu es en lecture seule : tes coches ne s’enregistrent pas. Demande à la personne qui a partagé la page de te passer en Contributeur.') + '</p></div>';
+    }
+    $('banner').innerHTML = h;
+  }
+  function renderAside(){
+    var jd = Math.round((jD - today) / MS);
+    $('cd').innerHTML = jd > 0 ? '<span>' + jd + '</span> jours avant J' : (jd === 0 ? 'J, c’est aujourd’hui' : 'J est passé');
+    var inp = $('j-date');
+    var locked = !!S.db && !S.admin;
+    inp.disabled = locked; $('j-reset').disabled = locked;
+    if (document.activeElement !== inp) inp.value = S.jdate;
+    $('jn').innerHTML = 'Le guide ne donne pas cette date : le 1er mars 2027 est une hypothèse. Toutes les échéances « J−x » se recalculent quand elle change.' +
+      (S.db ? (S.admin ? ' <b>Ce réglage est partagé : il change pour toute l’équipe.</b>' : (AUTH ? ' Seul l’admin peut la modifier.' : ' Seul un Éditeur de la page peut la modifier.')) : ' Réglage local à ce navigateur.');
+  }
+  function renderAcct(){
+    var el = $('acct');
+    if (!el || !AUTH) return;
+    var a = (AUTH.state && AUTH.state()) || {};
+    var h = '<p class="lbl">Compte</p>';
+    if (!S.db) h += '<small>Base non connectée.</small>';
+    else if (a.email) h += '<small>Connecté avec Google : <b>' + esc(a.email) + '</b>' + (S.admin ? ' · <b>admin</b>' : '') + '</small><button type="button" class="btn" data-act="auth-out">Se déconnecter</button>';
+    else h += '<small>Tu utilises la page sans compte : tes coches restent liées à cet appareil. Connecte-toi avec Google pour les retrouver partout. L’admin se connecte ici pour modifier l’équipe.</small><button type="button" class="btn" data-act="auth-in">Se connecter avec Google</button>';
+    el.innerHTML = h;
+  }
+  function renderBadges(){
+    var nS = (S.db && D.hasPeople) ? D.tasks.filter(function(t){ return t.st.late; }).length : 0;
+    var lim = add(today, 14);
+    var nM = D.me ? D.tasks.filter(function(t){ return isMine(t) && !doneTs(D.me, t.id) && (t.e || t.s) <= lim; }).length : 0;
+    $('n-suivi').textContent = nS ? String(nS) : '';
+    $('n-suivi').setAttribute('aria-label', nS ? nS + ' en retard' : '');
+    $('n-moi').textContent = nM ? String(nM) : '';
+    $('n-moi').setAttribute('aria-label', nM ? nM + ' à faire sous 14 jours' : '');
+  }
+  function renderAll(){
+    derive();
+    renderBanner();
+    renderAside();
+    renderAcct();
+    renderBadges();
+    ['frise','suivi','moi','equipe'].forEach(function(n){
+      $('v-' + n).hidden = (S.tab !== n);
+      $('tab-' + n).setAttribute('aria-selected', String(S.tab === n));
+    });
+    if (S.tab === 'frise') renderFrise();
+    else if (S.tab === 'suivi') renderSuivi();
+    else if (S.tab === 'moi') renderMoi();
+    else renderEquipe();
+  }
+  function typing(){
+    var a = document.activeElement;
+    return !!a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.type !== 'checkbox' && a.type !== 'button' && $('main').contains(a);
+  }
+  function maybeRender(){
+    if (!S.pending) return;
+    if (S.pressing || typing()) return;
+    S.pending = false;
+    renderAll();
+  }
+  function refresh(force){
+    S.pending = true;
+    if (force){ S.pending = false; renderAll(); } else maybeRender();
+  }
+
+  /* ================= Actions ================= */
+  var armTimer = null;
+  function toggleIn(arr, v){ var a = arr.slice(), i = a.indexOf(v); if (i > -1) a.splice(i, 1); else a.push(v); return a; }
+
+  var H = {
+    'tab':function(el){
+      S.tab = el.dataset.tab; lsSet('jalons-tab', S.tab); refresh(true);
+      window.scrollTo(0, 0);
+    },
+    'filter':function(el){
+      S.role = el.dataset.role || null; lsSet('jalons-role', S.role); refresh(true);
+    },
+    'toggle':function(){ S.compact = !S.compact; refresh(true); },
+    'auth-in':function(){
+      if (!AUTH || !AUTH.login) return;
+      AUTH.login().then(function(){ location.reload(); }).catch(function(e){
+        var c = e && e.code, m = 'Connexion Google impossible.';
+        if (c === 'auth/popup-blocked') m = 'Le navigateur a bloqué la fenêtre Google : autorise-la puis réessaie.';
+        else if (c === 'auth/unauthorized-domain') m = 'Domaine non autorisé : ajoute l’adresse de la page dans Firebase, Authentication, Settings, Authorized domains.';
+        else if (c === 'auth/popup-closed-by-user' || c === 'auth/cancelled-popup-request') m = 'Connexion annulée.';
+        else if (c === 'auth/operation-not-allowed') m = 'La connexion Google n’est pas activée dans Firebase (Authentication, Sign-in method).';
+        toast(m);
+      });
+    },
+    'auth-out':function(){ if (AUTH && AUTH.logout) AUTH.logout().then(function(){ location.reload(); }); },
+    'seed':function(){
+      if (!S.admin || D.hasPeople) return;
+      var pr = Promise.resolve();
+      SEED.forEach(function(x, i){
+        pr = pr.then(function(){ return W('people/p' + rid8() + i, 'set', {name:x[0], roles:x[1], ord:i + 1}); });
+      });
+      guard(pr.then(function(){ toast('Équipe pré-remplie : ' + SEED.length + ' personnes.'); }));
+    },
+    'goto':function(el){
+      S.tab = 'frise'; S.role = null; S.compact = false; lsSet('jalons-tab', 'frise'); lsSet('jalons-role', null);
+      refresh(true);
+      var t = document.getElementById('j-' + el.dataset.id);
+      if (t) t.scrollIntoView({block:'start'});
+    },
+    'tick':function(el){
+      var jid = el.dataset.id, t = D.byId[jid];
+      if (!S.db || !S.uid || !D.me || !t || t.st.ps.indexOf(D.me) < 0) return;
+      var o = {}; o[jid] = myDone(jid) ? 0 : Date.now();
+      W('checks/' + S.uid, 'update', {done:o}).catch(function(e){
+        if (e && e.code === 'invalid_argument'){ S.readOnly = true; refresh(true); }
+        fail(e);
+      });
+    },
+    'claim':function(){
+      var sel = $('claim-sel');
+      if (!sel || !S.uid || !S.people[sel.value]) return;
+      var cur = S.checks[S.uid];
+      var done = (cur && cur.pid === sel.value && cur.done) ? cur.done : {};
+      W('checks/' + S.uid, 'set', {pid:sel.value, done:done}).then(function(){ toast('Compte lié à ' + pname(sel.value) + '.'); }).catch(function(e){
+        if (e && e.code === 'invalid_argument'){ S.readOnly = true; refresh(true); }
+        fail(e);
+      });
+    },
+    'unclaim':function(){ if (S.uid) guard(W('checks/' + S.uid, 'set', {pid:'', done:{}})); },
+    'detach':function(el){ guard(W('checks/' + el.dataset.uid, 'set', {pid:'', done:{}})); },
+
+    'p-add':function(){
+      var i = $('p-new'), name = i.value.trim();
+      if (!name){ toast('Écris d’abord un prénom.'); return; }
+      var ord = D.pids.reduce(function(m, p){ return Math.max(m, S.people[p].ord || 0); }, 0) + 1;
+      i.value = '';
+      guard(W('people/p' + rid8(), 'set', {name:name, roles:[], ord:ord}).then(function(){ toast(name + ' ajouté(e) à l’équipe.'); }));
+    },
+    'p-del':function(el){ guard(W('people/' + el.dataset.pid, 'delete')); },
+    'p-role':function(el){
+      var p = S.people[el.dataset.pid]; if (!p) return;
+      guard(W('people/' + el.dataset.pid, 'update', {roles:toggleIn(p.roles || [], el.dataset.role)}));
+    },
+    'r-add':function(){
+      var i = $('r-new'), label = i.value.trim(), holder = $('r-holder').value;
+      if (!label){ toast('Donne un nom au rôle.'); return; }
+      var ord = allRoles().filter(isCustom).reduce(function(m, r){ return Math.max(m, S.rolesDoc[r].ord || 0); }, 0) + 1;
+      var id = 'r' + rid8();
+      i.value = '';
+      var pr = W('roles/' + id, 'set', {label:label, custom:1, ord:ord});
+      if (holder && S.people[holder]){
+        pr = pr.then(function(){ return W('people/' + holder, 'update', {roles:(S.people[holder].roles || []).concat([id])}); });
+      }
+      guard(pr.then(function(){ toast('Rôle « ' + label + ' » ajouté.'); }));
+    },
+    'r-del':function(el){
+      var id = el.dataset.rid; if (!isCustom(id)) return;
+      var pr = Promise.resolve();
+      D.pids.forEach(function(p){
+        if ((S.people[p].roles || []).indexOf(id) > -1){
+          pr = pr.then(function(){ return W('people/' + p, 'update', {roles:S.people[p].roles.filter(function(r){ return r !== id; })}); });
+        }
+      });
+      Object.keys(S.goals).forEach(function(g){
+        if ((S.goals[g].roles || []).indexOf(id) > -1){
+          pr = pr.then(function(){ return W('goals/' + g, 'update', {roles:S.goals[g].roles.filter(function(r){ return r !== id; })}); });
+        }
+      });
+      guard(pr.then(function(){ return W('roles/' + id, 'delete'); }));
+    },
+
+    'g-role':function(el){ S.gf.roles = toggleIn(S.gf.roles, el.dataset.role); refresh(true); },
+    'g-edit':function(el){
+      var g = S.goals[el.dataset.gid]; if (!g) return;
+      S.gf = {id:el.dataset.gid, title:g.title || '', date:g.date || '', roles:(g.roles || []).slice(), why:g.why || '', steps:(g.steps || []).join('\n'), out:g.out || '', crit:!!g.crit};
+      refresh(true);
+      var f = $('gform'); if (f) f.scrollIntoView({block:'start'});
+    },
+    'g-cancel':function(){ S.gf = emptyGoal(); refresh(true); },
+    'g-del':function(el){
+      var gid = el.dataset.gid;
+      if (S.gf.id === gid) S.gf = emptyGoal();
+      guard(W('goals/' + gid, 'delete').then(function(){ toast('Objectif supprimé.'); }));
+    },
+    'g-save':function(){
+      var f = S.gf, title = f.title.trim();
+      if (!title){ toast('Il manque le titre de l’objectif.'); return; }
+      if (!/^\d{4}-\d\d-\d\d$/.test(f.date)){ toast('Choisis une date limite.'); return; }
+      if (!f.roles.length){ toast('Choisis au moins un rôle concerné.'); return; }
+      var id = f.id || ('g' + rid8()), edit = !!f.id;
+      var data = {title:title, date:f.date, roles:f.roles.slice(), why:f.why.trim(), steps:lines(f.steps), out:f.out.trim(), crit:!!f.crit};
+      W('goals/' + id, 'set', data).then(function(){
+        S.gf = emptyGoal(); toast(edit ? 'Objectif mis à jour.' : 'Objectif ajouté à la frise.'); refresh(true);
+      }).catch(fail);
+    },
+
+    'todo-add':function(){
+      var i = $('todo-t'), d = $('todo-d'), t = i.value.trim();
+      if (!t){ toast('Écris la tâche d’abord.'); return; }
+      S.perso.todos = (S.perso.todos || []).concat([{id:'t' + rid8(), t:t, d:d.value || '', done:0}]);
+      persoSave(); refresh(true);
+    },
+    'todo-tick':function(el){
+      S.perso.todos = (S.perso.todos || []).map(function(x){ return x.id === el.dataset.id ? {id:x.id, t:x.t, d:x.d, done:x.done ? 0 : 1} : x; });
+      persoSave(); refresh(true);
+    },
+    'todo-del':function(el){
+      S.perso.todos = (S.perso.todos || []).filter(function(x){ return x.id !== el.dataset.id; });
+      persoSave(); refresh(true);
+    }
+  };
+
+  document.addEventListener('click', function(e){
+    var el = e.target.closest('[data-act]');
+    if (!el || el.disabled) return;
+    var key = el.dataset.arm;
+    if (key){
+      if (S.armed !== key){
+        S.armed = key; refresh(true);
+        clearTimeout(armTimer);
+        armTimer = setTimeout(function(){ S.armed = null; refresh(false); }, 4000);
+        return;
+      }
+      S.armed = null; clearTimeout(armTimer);
+    }
+    var fn = H[el.dataset.act];
+    if (fn) fn(el, e);
+  });
+  $('toggle').addEventListener('click', function(){ H.toggle(); });
+
+  document.addEventListener('change', function(e){
+    var el = e.target, d = el.dataset;
+    if (d.mx){ S.mx[d.mx] = el.checked; refresh(true); return; }
+    if (d.f === 'crit'){ S.gf.crit = el.checked; return; }
+    if (!S.db) return;
+    if (d.ch === 'p-name'){
+      var n = el.value.trim();
+      if (!n){ el.value = pname(d.pid); return; }
+      if (n !== pname(d.pid)) guard(W('people/' + d.pid, 'update', {name:n}));
+    } else if (d.ch === 'r-name'){
+      var rid = d.rid, label = el.value.trim(), cur = S.rolesDoc[rid];
+      if (!label){
+        if (isCustom(rid)){ el.value = roleLabel(rid); toast('Un rôle ajouté doit garder un nom.'); }
+        else if (cur) guard(W('roles/' + rid, 'delete'));
+        return;
+      }
+      if (label === roleLabel(rid)) return;
+      if (!isCustom(rid) && label === DEF[rid]) guard(W('roles/' + rid, 'delete'));
+      else guard(W('roles/' + rid, 'set', Object.assign({}, cur || {}, {label:label})));
+    }
+  });
+  document.addEventListener('input', function(e){
+    var el = e.target, f = el.dataset.f;
+    if (f && f !== 'crit' && f in S.gf){ S.gf[f] = el.value; return; }
+    if (el.id === 'notes'){
+      S.perso.notes = el.value;
+      setSaved('…');
+      clearTimeout(persoTimer);
+      persoTimer = setTimeout(persoSave, 700);
+    }
+  });
+  document.addEventListener('keydown', function(e){
+    if (e.key !== 'Enter' || e.target.tagName !== 'INPUT') return;
+    var row = e.target.closest('.er');
+    var b = row && row.querySelector('[data-primary]');
+    if (b){ e.preventDefault(); b.click(); }
+  });
+  document.addEventListener('focusout', function(e){
+    if (e.target.id === 'notes' && persoTimer){ clearTimeout(persoTimer); persoTimer = null; persoSave(); }
+    setTimeout(maybeRender, 120);
+  });
+  document.addEventListener('pointerdown', function(){ S.pressing = true; }, true);
+  ['pointerup','pointercancel'].forEach(function(n){
+    document.addEventListener(n, function(){ S.pressing = false; setTimeout(maybeRender, 120); }, true);
+  });
+
+  /* ---------- Date J ---------- */
+  $('j-date').addEventListener('change', function(){
+    var v = this.value; if (!/^\d{4}-\d\d-\d\d$/.test(v)) return;
+    setJ(v);
+  });
+  $('j-reset').addEventListener('click', function(){ setJ(DEFAULT_J); });
+  function setJ(v){
+    if (S.db){
+      if (!S.admin) return;
+      guard(W('meta/config', 'set', {jdate:v}));
+    } else {
+      S.jdate = v; lsSet('jalons-j', v); refresh(true);
+    }
+  }
+
+  /* ---------- Espace perso ---------- */
+  var persoTimer = null;
+  function setSaved(m){ var s = $('saved'); if (s) s.textContent = m; }
+  function persoSave(){
+    persoTimer = null;
+    if (!S.db || !S.uid) return;
+    S.persoDirty++;
+    W('data/users/' + S.uid + '/perso', 'set', {notes:S.perso.notes || '', todos:S.perso.todos || []}).then(function(){
+      S.persoDirty = Math.max(0, S.persoDirty - 1); setSaved('Enregistré');
+    }).catch(function(e){
+      S.persoDirty = Math.max(0, S.persoDirty - 1); setSaved('Non enregistré'); fail(e);
+    });
+  }
+
+  /* ---------- Homologues ---------- */
+  $('hom').innerHTML = DEF_ORDER.map(function(r){
+    return '<li><span>' + esc(DEF[r]) + '</span><b>' + esc(HOM[r]) + '</b></li>';
+  }).join('');
+
+  /* ================= Abonnements ================= */
+  function sub(coll, key, map){
+    S.db.collection(coll).onSnapshot(function(snap){
+      var o = {};
+      snap.docs.forEach(function(d){ o[d.id] = d.data(); });
+      S[map] = o; S.ready[key] = true; refresh(false);
+    }, function(e){ S.ready[key] = true; refresh(false); if (e && e.code !== 'revoked') fail(e); });
+  }
+  function start(){
+    if (AUTH && !S.uid){
+      Object.keys(S.ready).forEach(function(k){ S.ready[k] = true; });
+      return;
+    }
+    sub('people', 'people', 'people');
+    sub('roles', 'roles', 'rolesDoc');
+    sub('goals', 'goals', 'goals');
+    sub('checks', 'checks', 'checks');
+    S.db.doc('meta/config').onSnapshot(function(d){
+      var c = d.exists ? d.data() : null;
+      S.jdate = (c && /^\d{4}-\d\d-\d\d$/.test(c.jdate || '')) ? c.jdate : DEFAULT_J;
+      S.ready.cfg = true; refresh(false);
+    }, function(){ S.ready.cfg = true; });
+    if (S.uid){
+      S.db.doc('data/users/' + S.uid + '/perso').onSnapshot(function(d){
+        var c = d.exists ? d.data() : null;
+        if (!S.persoDirty){
+          S.perso = {notes:(c && c.notes) || '', todos:((c && c.todos) || []).map(function(x){ return {id:x.id, t:x.t, d:x.d || '', done:x.done ? 1 : 0}; })};
+        }
+        S.ready.perso = true;
+        refresh(false);
+      }, function(){ S.ready.perso = true; });
+    }
+  }
+
+  /* ================= Démarrage ================= */
+  var tabSaved = lsGet('jalons-tab');
+  if (tabSaved && ['frise','suivi','moi','equipe'].indexOf(tabSaved) > -1) S.tab = tabSaved;
+  var roleSaved = lsGet('jalons-role');
+  if (roleSaved) S.role = roleSaved;
+  var jSaved = lsGet('jalons-j');
+  if (jSaved && /^\d{4}-\d\d-\d\d$/.test(jSaved)) S.jdate = jSaved;
+  renderAll();
+
+  (async function(){
+    try { if (window.claude && window.claude.use){ S.db = await window.claude.use('db'); S.user = await window.claude.use('user'); } } catch (x) {}
+    if (!S.db){
+      S.noDb = true; S.jdate = jSaved && /^\d{4}-\d\d-\d\d$/.test(jSaved) ? jSaved : DEFAULT_J; refresh(true); return;
+    }
+    S.jdate = DEFAULT_J;
+    try {
+      if (S.user){
+        S.uid = await S.user.id();
+        S.admin = await S.user.canEdit();
+        S.owner = await S.user.isOwner();
+      }
+    } catch (x) {}
+    start();
+    refresh(true);
+  })();
+
+})();
+</script>
+</body>
+</html>
